@@ -19,28 +19,27 @@ package com.amazon.deequ.analyzers.jdbc
 import java.sql.ResultSet
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
-import com.amazon.deequ.analyzers.MinState
+import com.amazon.deequ.analyzers.MaxState
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import org.postgresql.util.PSQLException
-import Preconditions.{hasTable, hasColumn, isNumeric}
+import Preconditions._
 
-
-case class JdbcMinimum(column: String)
-  extends JdbcAnalyzer[MinState, DoubleMetric] {
+case class JdbcMaximum(column: String)
+  extends JdbcAnalyzer[MaxState, DoubleMetric] {
 
   override def preconditions: Seq[Table => Unit] = {
     hasTable(column) :: hasColumn(column) :: isNumeric(column) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MinState] = {
+  override def computeStateFrom(table: Table): Option[MaxState] = {
 
     val connection = table.jdbcConnection
 
     val query =
       s"""
          |SELECT
-         | MIN($column) AS col_min
+         | MAX($column) AS col_max
          |FROM
          | ${table.name}
       """.stripMargin
@@ -58,26 +57,26 @@ case class JdbcMinimum(column: String)
     }
 
     try {
-      val col_min = result.getDouble("col_min")
+      val col_max = result.getDouble("col_max")
 
-      Some(MinState(col_min))
+      Some(MaxState(col_max))
     }
     catch {
       case error: Exception => throw error
     }
   }
 
-  override def computeMetricFrom(state: Option[MinState]): DoubleMetric = {
+  override def computeMetricFrom(state: Option[MaxState]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Minimum", column, Entity.Column)
+        metricFromValue(theState.metricValue(), "Maximum", column, Entity.Column)
       case _ =>
         toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcMinimum, all input values were NULL."))
+          s"Empty state for analyzer JdbcMaximum, all input values were NULL."))
     }
   }
 
   override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Minimum", column, Entity.Column)
+    metricFromFailure(failure, "Maximum", column, Entity.Column)
   }
 }
