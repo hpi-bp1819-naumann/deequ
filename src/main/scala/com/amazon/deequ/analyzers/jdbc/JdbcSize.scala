@@ -19,28 +19,29 @@ package com.amazon.deequ.analyzers.jdbc
 import java.sql.ResultSet
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
-import com.amazon.deequ.analyzers.MinState
+import com.amazon.deequ.analyzers.NumMatches
+import com.amazon.deequ.analyzers.jdbc.Preconditions.hasTable
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import org.postgresql.util.PSQLException
-import Preconditions.{hasTable, hasColumn, isNumeric}
 
+case class JdbcSize()
+  extends JdbcAnalyzer[NumMatches, DoubleMetric] {
 
-case class JdbcMinimum(column: String)
-  extends JdbcAnalyzer[MinState, DoubleMetric] {
+  val column = "*"
 
   override def preconditions: Seq[Table => Unit] = {
-    hasTable(column) :: hasColumn(column) :: isNumeric(column) :: Nil
+    hasTable(column) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MinState] = {
+  override def computeStateFrom(table: Table): Option[NumMatches] = {
 
     val connection = table.jdbcConnection
 
     val query =
       s"""
          |SELECT
-         | MIN($column) AS col_min
+         | COUNT (*) AS num_rows
          |FROM
          | ${table.name}
       """.stripMargin
@@ -58,26 +59,26 @@ case class JdbcMinimum(column: String)
     }
 
     try {
-      val col_min = result.getDouble("col_min")
+      val num_rows = result.getLong("num_rows")
 
-      Some(MinState(col_min))
+      Some(NumMatches(num_rows))
     }
     catch {
       case error: Exception => throw error
     }
   }
 
-  override def computeMetricFrom(state: Option[MinState]): DoubleMetric = {
+  override def computeMetricFrom(state: Option[NumMatches]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Minimum", column, Entity.Column)
+        metricFromValue(theState.metricValue(), "Size", column, Entity.Column)
       case _ =>
         toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcMinimum, all input values were NULL."))
+          s"Empty state for analyzer JdbcSize, all input values were NULL."))
     }
   }
 
   override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Minimum", column, Entity.Column)
+    metricFromFailure(failure, "Size", column, Entity.Column)
   }
 }

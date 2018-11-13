@@ -20,12 +20,12 @@ import java.sql.ResultSet
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
 import com.amazon.deequ.analyzers.NumMatchesAndCount
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasTable, hasColumn}
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import org.postgresql.util.PSQLException
 
-case class JdbcCompleteness(column: String)
+case class JdbcUniqueness(column: String)
   extends JdbcAnalyzer[NumMatchesAndCount, DoubleMetric] {
 
   override def preconditions: Seq[Table => Unit] = {
@@ -38,12 +38,24 @@ case class JdbcCompleteness(column: String)
 
     val query =
       s"""
-        |SELECT
-        | SUM(CASE WHEN $column IS NULL THEN 0 ELSE 1 END) AS num_matches,
-        | COUNT(*) AS num_rows
-        |FROM
-        | ${table.name}
+       | SELECT *
+       | FROM
+       |   (SELECT SUM(number_values) AS num_unique_values
+       |    FROM
+       |      (SELECT $column,
+       |      COUNT(*) AS number_values
+       |      FROM ${table.name}
+       |      GROUP BY $column
+       |      HAVING COUNT($column) = 1)
+       |      AS uniqueValues
+       |    GROUP BY number_values) AS num_unique_values
+       |
+       |  CROSS JOIN
+       |
+       |  (SELECT COUNT(*) AS num_rows
+       |  FROM ${table.name}) AS num_rows
       """.stripMargin
+
 
     val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
       ResultSet.CONCUR_READ_ONLY)
@@ -58,10 +70,10 @@ case class JdbcCompleteness(column: String)
     }
 
     try {
-      val num_matches = result.getLong("num_matches")
+      val num_unique_values = result.getLong("num_unique_values")
       val num_rows = result.getLong("num_rows")
 
-      Some(NumMatchesAndCount(num_matches, num_rows))
+      Some(NumMatchesAndCount(num_unique_values, num_rows))
     }
     catch {
       case error: Exception => throw error
@@ -71,14 +83,14 @@ case class JdbcCompleteness(column: String)
   override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Completeness", column, Entity.Column)
+        metricFromValue(theState.metricValue(), "Uniqueness", column, Entity.Column)
       case _ =>
         toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcCompleteness, all input values were NULL."))
+          s"Empty state for analyzer JdbcUniqueness all input values were NULL."))
     }
   }
 
   override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Completeness", column, Entity.Column)
+    metricFromFailure(failure, "Uniqueness", column, Entity.Column)
   }
 }

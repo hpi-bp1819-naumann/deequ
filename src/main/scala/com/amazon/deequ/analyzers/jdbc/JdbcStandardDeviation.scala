@@ -19,30 +19,41 @@ package com.amazon.deequ.analyzers.jdbc
 import java.sql.ResultSet
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
-import com.amazon.deequ.analyzers.MinState
+import com.amazon.deequ.analyzers.StandardDeviationState
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import org.postgresql.util.PSQLException
-import Preconditions.{hasTable, hasColumn, isNumeric}
+import Preconditions.{hasColumn, hasTable, isNumeric}
 
-
-case class JdbcMinimum(column: String)
-  extends JdbcAnalyzer[MinState, DoubleMetric] {
+case class JdbcStandardDeviation(column: String)
+  extends JdbcAnalyzer[StandardDeviationState, DoubleMetric] {
 
   override def preconditions: Seq[Table => Unit] = {
     hasTable(column) :: hasColumn(column) :: isNumeric(column) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MinState] = {
+  override def computeStateFrom(table: Table): Option[StandardDeviationState] = {
 
     val connection = table.jdbcConnection
-
     val query =
       s"""
          |SELECT
-         | MIN($column) AS col_min
+         | col_count,
+         | col_avg,
+         | SUM(POWER($column - col_avg, 2)) AS col_m2
          |FROM
-         | ${table.name}
+         | (SELECT
+         |  $column
+         | FROM
+         |  ${table.name}) AS A
+         |CROSS JOIN
+         | (SELECT
+         |   COUNT($column) AS col_count,
+         |   AVG($column) AS col_avg
+         |  FROM ${table.name}) AS B
+         |GROUP BY
+         | col_count,
+         | col_avg
       """.stripMargin
 
     val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
@@ -58,26 +69,28 @@ case class JdbcMinimum(column: String)
     }
 
     try {
-      val col_min = result.getDouble("col_min")
+      val col_count = result.getDouble("col_count")
+      val col_avg = result.getDouble("col_avg")
+      val col_m2 = result.getDouble("col_m2")
 
-      Some(MinState(col_min))
+      Some(StandardDeviationState(col_count, col_avg, col_m2))
     }
     catch {
       case error: Exception => throw error
     }
   }
 
-  override def computeMetricFrom(state: Option[MinState]): DoubleMetric = {
+  override def computeMetricFrom(state: Option[StandardDeviationState]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Minimum", column, Entity.Column)
+        metricFromValue(theState.metricValue(), "StandardDeviation", column, Entity.Column)
       case _ =>
         toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcMinimum, all input values were NULL."))
+          s"Empty state for analyzer JdbcStandardDeviation, all input values were NULL."))
     }
   }
 
   override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Minimum", column, Entity.Column)
+    metricFromFailure(failure, "StandardDeviation", column, Entity.Column)
   }
 }
