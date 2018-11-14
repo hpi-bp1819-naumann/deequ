@@ -66,7 +66,6 @@ case class JdbcUniqueness(column: String)
     if (result.next()) {
       val num_unique_values = result.getLong("num_unique_values")
       val num_rows = result.getLong("num_rows")
-      val num_unique_values = result.getLong("num_unique_values")
 
       if (num_rows > 0) {
         return Some(NumMatchesAndCount(num_unique_values, num_rows))
