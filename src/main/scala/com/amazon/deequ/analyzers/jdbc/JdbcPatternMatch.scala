@@ -24,7 +24,20 @@ import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 
-case class JdbcDistinctness(column: String)
+import scala.util.matching.Regex
+
+/**
+  * PatternMatch is a measure of the fraction of rows that complies with a given
+  * column regex constraint. E.g if the constraint is Patterns.CREDITCARD and the
+  * data frame has 5 rows which contain a credit card number in a certain column
+  * according to the regex and 10 rows that do not, a DoubleMetric would be
+  * returned with 0.33 as value
+  *
+  * @param column     Column to do the pattern match analysis on
+  * @param pattern    The regular expression to check for
+  * @param where      Additional filter to apply before the analyzer is run.
+  */
+case class JdbcPatternMatch(column: String, pattern: Regex, where: Option[String] = None)
   extends JdbcAnalyzer[NumMatchesAndCount, DoubleMetric] {
 
   override def preconditions: Seq[Table => Unit] = {
@@ -38,39 +51,43 @@ case class JdbcDistinctness(column: String)
     val query =
       s"""
          |SELECT
-         | COUNT(DISTINCT $column) AS num_matches,
+         | SUM(CASE WHEN
+         | (SELECT regexp_matches(CAST($column AS text), ?, '')) IS NOT NULL
+         | THEN 1 ELSE 0 END) as num_matches,
          | COUNT(*) AS num_rows
          |FROM
          | ${table.name}
+         |WHERE
+         | ${where.getOrElse("TRUE = TRUE")};
       """.stripMargin
 
     val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
       ResultSet.CONCUR_READ_ONLY)
+
+    statement.setString(1, pattern.toString())
 
     val result = statement.executeQuery()
 
     if (result.next()) {
       val num_matches = result.getLong("num_matches")
       val num_rows = result.getLong("num_rows")
-
-      if (num_matches > 0) {
-        return Some(NumMatchesAndCount(num_matches, num_rows))
-      }
+      Some(NumMatchesAndCount(num_matches, num_rows))
+    } else {
+      None
     }
-    None
   }
 
   override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Distinctness", column, Entity.Column)
+        metricFromValue(theState.metricValue(), "PatternMatch", column, Entity.Column)
       case _ =>
         toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcDistinctness, all input values were NULL."))
+          s"Empty state for analyzer JdbcPatternMatch, all input values were NULL."))
     }
   }
 
   override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Distinctness", column, Entity.Column)
+    metricFromFailure(failure, "PatternMatch", column, Entity.Column)
   }
 }
