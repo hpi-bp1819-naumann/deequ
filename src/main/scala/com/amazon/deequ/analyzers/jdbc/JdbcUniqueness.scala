@@ -20,6 +20,7 @@ import java.sql.ResultSet
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
 import com.amazon.deequ.analyzers.NumMatchesAndCount
+
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
@@ -28,32 +29,32 @@ import org.postgresql.util.PSQLException
 case class JdbcUniqueness(column: String)
   extends JdbcAnalyzer[NumMatchesAndCount, DoubleMetric] {
 
+
   override def preconditions: Seq[Table => Unit] = {
     hasTable() :: hasColumn(column) :: Nil
   }
 
   override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
-
     val connection = table.jdbcConnection
-
     val query =
       s"""
        | SELECT *
        | FROM
-       |   (SELECT SUM(number_values) AS num_unique_values
-       |    FROM
-       |      (SELECT $column,
-       |      COUNT(*) AS number_values
-       |      FROM ${table.name}
-       |      GROUP BY $column
-       |      HAVING COUNT($column) = 1)
-       |      AS uniqueValues
-       |    GROUP BY number_values) AS num_unique_values
        |
-       |  CROSS JOIN
+       | (SELECT COUNT(*) as num_unique_values
+       | FROM
+       |    (SELECT $column,
+       |    COUNT(*) AS number_values
+       |    FROM ${table.name}
+       |    GROUP BY $column) AS grouping
+       | WHERE number_values = 1) as filtered_grouping
+       |
+       | CROSS JOIN
        |
        |  (SELECT COUNT(*) AS num_rows
-       |  FROM ${table.name}) AS num_rows
+       |  FROM ${table.name}) AS _
+       |
+       |
       """.stripMargin
 
 
@@ -65,6 +66,7 @@ case class JdbcUniqueness(column: String)
     if (result.next()) {
       val num_unique_values = result.getLong("num_unique_values")
       val num_rows = result.getLong("num_rows")
+      val num_unique_values = result.getLong("num_unique_values")
 
       if (num_rows > 0) {
         return Some(NumMatchesAndCount(num_unique_values, num_rows))
