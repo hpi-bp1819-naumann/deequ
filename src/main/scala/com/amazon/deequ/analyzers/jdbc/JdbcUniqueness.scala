@@ -16,75 +16,24 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-
-import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
-import com.amazon.deequ.analyzers.NumMatchesAndCount
-
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
-import com.amazon.deequ.metrics.{DoubleMetric, Entity}
-import org.postgresql.util.PSQLException
+import com.amazon.deequ.metrics.DoubleMetric
 
-case class JdbcUniqueness(column: String)
-  extends JdbcAnalyzer[NumMatchesAndCount, DoubleMetric] {
+case class JdbcUniqueness(columns: Seq[String])
+  extends JdbcScanShareableFrequencyBasedAnalyzer("Uniqueness", columns) {
 
-
-  override def preconditions: Seq[Table => Unit] = {
-    hasTable() :: hasColumn(column) :: Nil
-  }
-
-  override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
-    val connection = table.jdbcConnection
-    val query =
-      s"""
-       | SELECT *
-       | FROM
-       |
-       | (SELECT COUNT(*) as num_unique_values
-       | FROM
-       |    (SELECT $column,
-       |    COUNT(*) AS number_values
-       |    FROM ${table.name}
-       |    GROUP BY $column) AS grouping
-       | WHERE number_values = 1) as filtered_grouping
-       |
-       | CROSS JOIN
-       |
-       |  (SELECT COUNT(*) AS num_rows
-       |  FROM ${table.name}) AS _
-       |
-       |
-      """.stripMargin
-
-
-    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY)
-
-    val result = statement.executeQuery()
-
-    if (result.next()) {
-      val num_unique_values = result.getLong("num_unique_values")
-      val num_rows = result.getLong("num_rows")
-
-      if (num_rows > 0) {
-        return Some(NumMatchesAndCount(num_unique_values, num_rows))
-      }
+  override def calculateMetricValue(state: JdbcFrequenciesAndNumRows): DoubleMetric = {
+    if (state.frequencies.isEmpty) {
+      return toFailureMetric(new EmptyStateException(
+        s"Empty state for analyzer JdbcDistinctness, all input values were NULL."))
     }
-    None
+    val numUniqueValues = state.frequencies.values.count(_ == 1)
+    toSuccessMetric(numUniqueValues.toDouble / state.numRows)
   }
+}
 
-  override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
-    state match {
-      case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Uniqueness", column, Entity.Column)
-      case _ =>
-        toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcUniqueness all input values were NULL."))
-    }
-  }
-
-  override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Uniqueness", column, Entity.Column)
+object JdbcUniqueness {
+  def apply(column: String): JdbcUniqueness = {
+    new JdbcUniqueness(column :: Nil)
   }
 }
