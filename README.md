@@ -15,13 +15,13 @@ __Maven__
 <dependency>
   <groupId>com.amazon.deequ</groupId>
   <artifactId>deequ</artifactId>
-  <version>1.0.0-rc2</version>
+  <version>1.0.0-rc3</version>
 </dependency>
 ```
 
 __sbt__
 ```
-libraryDependencies += "com.amazon.deequ" % "deequ" % "1.0.0-rc2"
+libraryDependencies += "com.amazon.deequ" % "deequ" % "1.0.0-rc3"
 ```
 
 ## Example
@@ -78,7 +78,7 @@ val verificationResult = VerificationSuite()
       .isComplete("name") // should never be NULL
       // should only contain the values "high" and "low"
       .isContainedIn("priority", Array("high", "low")) 
-      .isNonNegative("numViews")) // should not contain negative values
+      .isNonNegative("numViews") // should not contain negative values
       // at least half of the descriptions should contain a url          
       .containsURL("description", _ >= 0.5) 
       // half of the items should have less than 10 views
