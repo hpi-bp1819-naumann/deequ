@@ -1,5 +1,6 @@
 package com.amazon.deequ.analyzers.jdbc
 
+import com.amazon.deequ.analyzers.jdbc
 import com.amazon.deequ.analyzers.runners.NoSuchColumnException
 import com.amazon.deequ.metrics.{Distribution, DoubleMetric, Entity, HistogramMetric}
 import com.amazon.deequ.utils.AssertionUtils.TryUtils
@@ -220,13 +221,20 @@ class JdbcAnalyzerTests
         val table = getTableMissing(connection)
         val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
         assert(JdbcCompleteness("att1").calculate(tableWithInjection).value.isFailure)
+        assert(hasTable(connection, table.name))
       }
       "prevent sql injection in column name for completeness" in withJdbc { connection =>
         val table = getTableMissing(connection)
         val columnWithInjection = s"1 THEN 1 ELSE 0); DROP TABLE ${table.name};"
         assert(JdbcCompleteness(columnWithInjection).calculate(table).value.isFailure)
+        assert(hasTable(connection, table.name))
       }
-
+      "prevent sql injections in where clause for completeness" in withJdbc { connection =>
+        val table = getTableWithNumericValues(connection)
+        assert(JdbcCompleteness("att1", Some (s"';DROP TABLE ${table.name};--"))
+          .calculate(table).value.isFailure)
+        assert(hasTable(connection, table.name))
+      }
     }
 
   }
@@ -297,11 +305,13 @@ class JdbcAnalyzerTests
         val tableWithInjection =
           Table(s"${table.name}) AS num_rows; DROP TABLE ${table.name};", connection)
         assert(JdbcUniqueness("att1").calculate(tableWithInjection).value.isFailure)
+        assert(hasTable(connection, table.name))
       }
       "prevent sql injections in column name for uniqueness" in withJdbc { connection =>
         val table = getTableFull(connection)
         val columnWithInjection = s"nonExistingColumnName"
         assert(JdbcUniqueness(columnWithInjection).calculate(table).value.isFailure)
+        assert(hasTable(connection, table.name))
       }
 
     }
@@ -356,8 +366,8 @@ class JdbcAnalyzerTests
         DoubleMetric(Entity.Column, "Entropy", "att1",
           Success(
             -((1.0 / 3) * math.log(1.0 / 3)
-            + (1.0 / 3) * math.log(1.0 / 3)
-            + (1.0 / 6) * math.log(1.0 / 6)))))
+              + (1.0 / 3) * math.log(1.0 / 3)
+              + (1.0 / 6) * math.log(1.0 / 6)))))
       assert(JdbcEntropy("att2").calculate(tableDistinct) ==
         DoubleMetric(Entity.Column, "Entropy", "att2",
           Success(-(0.5 * math.log(0.5) + (1.0 / 6) * math.log(1.0 / 6)))))
@@ -412,11 +422,19 @@ class JdbcAnalyzerTests
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
           assert(JdbcMean("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for mean" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"1); DROP TABLE ${table.name};"
           assert(JdbcMean(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
+        }
+        "prevent sql injections in where clause for mean" in withJdbc { connection =>
+          val table = getTableWithNumericValues(connection)
+          assert(JdbcMean("att1", Some(s"';DROP TABLE ${table.name};--"))
+            .calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
@@ -455,12 +473,20 @@ class JdbcAnalyzerTests
         "prevent sql injections in table name for standard deviaton" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
-          assert(JdbcMean("att1").calculate(tableWithInjection).value.isFailure)
+          assert(JdbcStandardDeviation("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for standard deviaton" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"nonExistingColumnName"
-          assert(JdbcMean(columnWithInjection).calculate(table).value.isFailure)
+          assert(JdbcStandardDeviation(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
+        }
+        "prevent sql injections in where clause for standard deviation" in withJdbc { connection =>
+          val table = getTableWithNumericValues(connection)
+          assert(JdbcStandardDeviation("att1", Some (s"';DROP TABLE ${table.name};--"))
+            .calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
@@ -498,11 +524,19 @@ class JdbcAnalyzerTests
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
           assert(JdbcMinimum("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for minimum" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"1); DROP TABLE ${table.name};"
           assert(JdbcMinimum(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
+        }
+        "prevent sql injections in where clause for minimum" in withJdbc { connection =>
+          val table = getTableWithNumericValues(connection)
+          assert(JdbcMinimum("att1", Some (s"';DROP TABLE ${table.name};--"))
+            .calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
@@ -541,11 +575,19 @@ class JdbcAnalyzerTests
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
           assert(JdbcMaximum("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for maximum" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"1); DROP TABLE ${table.name};"
           assert(JdbcMaximum(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
+        }
+        "prevent sql injections in where clause for maximum" in withJdbc { connection =>
+          val table = getTableWithNumericValues(connection)
+          assert(JdbcMaximum("att1", Some (s"';DROP TABLE ${table.name};--"))
+            .calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
@@ -601,11 +643,19 @@ class JdbcAnalyzerTests
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
           assert(JdbcSum("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for sum" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"1); DROP TABLE ${table.name};"
           assert(JdbcSum(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
+        }
+        "prevent sql injections in where clause for sum" in withJdbc { connection =>
+          val table = getTableWithNumericValues(connection)
+          assert(JdbcSum("att1", Some (s"';DROP TABLE ${table.name};--"))
+            .calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
@@ -715,11 +765,13 @@ class JdbcAnalyzerTests
           val table = getTableWithNumericValues(connection)
           val tableWithInjection = Table(s"${table.name}; DROP TABLE ${table.name};", connection)
           assert(JdbcCountDistinct("att1").calculate(tableWithInjection).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
         "prevent sql injections in column name for count distinct" in withJdbc { connection =>
           val table = getTableWithNumericValues(connection)
           val columnWithInjection = s"1); DROP TABLE ${table.name};"
           assert(JdbcCountDistinct(columnWithInjection).calculate(table).value.isFailure)
+          assert(hasTable(connection, table.name))
         }
       }
     }
