@@ -45,7 +45,31 @@ case class JdbcCompliance(instance: String, predicate: String, where: Option[Str
     hasTable() :: hasNoInjection(Option(predicate)) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | SUM(CASE WHEN $predicate THEN 1 ELSE 0 END) AS num_matches,
+       | COUNT(*) AS num_rows
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+       """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[NumMatchesAndCount] = {
+    if (result.next()) {
+      val num_matches = result.getLong("num_matches")
+      val num_rows = result.getLong("num_rows")
+
+      if (num_rows > 0) {
+        return Some(NumMatchesAndCount(num_matches, num_rows))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
 
     val connection = table.jdbcConnection
 
@@ -57,7 +81,7 @@ case class JdbcCompliance(instance: String, predicate: String, where: Option[Str
          |FROM
          | ${table.name}
          |WHERE
-         |  ${where.getOrElse("TRUE=TRUE")}
+         | ${where.getOrElse("TRUE=TRUE")}
        """.stripMargin
 
     val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
@@ -76,7 +100,7 @@ case class JdbcCompliance(instance: String, predicate: String, where: Option[Str
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
     state match {

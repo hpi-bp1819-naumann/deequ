@@ -32,7 +32,29 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MinState] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | MIN($column) AS col_min
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[MinState] = {
+    if (result.next()) {
+      val col_min = result.getDouble("col_min")
+
+      if (!result.wasNull()) {
+        return Some(MinState(col_min))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[MinState] = {
 
     val connection = table.jdbcConnection
 
@@ -61,7 +83,7 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[MinState]): DoubleMetric = {
     state match {

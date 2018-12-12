@@ -31,7 +31,29 @@ case class JdbcSum(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[SumState] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | SUM($column) AS col_sum
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[SumState] = {
+    if (result.next()) {
+      val col_sum = result.getDouble("col_sum")
+
+      if (!result.wasNull()) {
+        return Some(SumState(col_sum))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[SumState] = {
 
     val connection = table.jdbcConnection
 
@@ -60,7 +82,7 @@ case class JdbcSum(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[SumState]): DoubleMetric = {
     state match {

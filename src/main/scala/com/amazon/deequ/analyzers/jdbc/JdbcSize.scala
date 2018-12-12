@@ -33,7 +33,26 @@ case class JdbcSize(where: Option[String] = None)
     hasTable() :: hasNoInjection(where):: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[NumMatches] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | COUNT (*) AS num_rows
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[NumMatches] = {
+    if (result.next()) {
+      val num_rows = result.getLong("num_rows")
+      return Some(NumMatches(num_rows))
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[NumMatches] = {
 
     val connection = table.jdbcConnection
 
@@ -59,7 +78,7 @@ case class JdbcSize(where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[NumMatches]): DoubleMetric = {
     state match {

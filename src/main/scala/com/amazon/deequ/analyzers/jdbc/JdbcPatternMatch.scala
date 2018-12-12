@@ -16,11 +16,11 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
+import java.sql.{PreparedStatement, ResultSet}
 
 import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
 import com.amazon.deequ.analyzers.NumMatchesAndCount
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable, hasNoInjection}
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, hasTable}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 
@@ -44,7 +44,36 @@ case class JdbcPatternMatch(column: String, pattern: Regex, where: Option[String
     hasTable() :: hasColumn(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | SUM(CASE WHEN
+       | (SELECT regexp_matches(CAST($column AS text), ?, '')) IS NOT NULL
+       | THEN 1 ELSE 0 END) as num_matches,
+       | COUNT(*) AS num_rows
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE = TRUE")};
+      """.stripMargin
+  }
+
+  override def insertParams(statement: PreparedStatement): PreparedStatement = {
+    statement.setString(1, pattern.toString())
+    statement
+  }
+
+  override def computeState(result: ResultSet): Option[NumMatchesAndCount] = {
+    if (result.next()) {
+      val num_matches = result.getLong("num_matches")
+      val num_rows = result.getLong("num_rows")
+      Some(NumMatchesAndCount(num_matches, num_rows))
+    } else {
+      None
+    }
+  }
+
+  /*override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
 
     val connection = table.jdbcConnection
 
@@ -77,7 +106,7 @@ case class JdbcPatternMatch(column: String, pattern: Regex, where: Option[String
       result.close()
       None
     }
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
     state match {

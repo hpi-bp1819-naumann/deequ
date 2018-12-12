@@ -31,7 +31,31 @@ case class JdbcMean(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MeanState] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | SUM($column) AS col_sum,
+       | COUNT(*) AS col_count
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[MeanState] = {
+    if (result.next()) {
+      val col_count = result.getLong("col_count")
+      val col_sum = result.getDouble("col_sum")
+
+      if (!result.wasNull()) {
+        return Some(MeanState(col_sum, col_count))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[MeanState] = {
 
     val connection = table.jdbcConnection
 
@@ -62,7 +86,7 @@ case class JdbcMean(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[MeanState]): DoubleMetric = {
     state match {

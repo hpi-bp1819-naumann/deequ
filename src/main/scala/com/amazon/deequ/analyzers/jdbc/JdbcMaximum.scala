@@ -31,7 +31,29 @@ case class JdbcMaximum(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[MaxState] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | MAX($column) AS col_max
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[MaxState] = {
+    if (result.next()) {
+      val col_max = result.getDouble("col_max")
+
+      if (!result.wasNull()) {
+        return Some(MaxState(col_max))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[MaxState] = {
 
     val connection = table.jdbcConnection
 
@@ -60,7 +82,7 @@ case class JdbcMaximum(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[MaxState]): DoubleMetric = {
     state match {

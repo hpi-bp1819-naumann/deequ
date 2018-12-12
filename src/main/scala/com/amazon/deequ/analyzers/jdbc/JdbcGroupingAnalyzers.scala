@@ -28,8 +28,13 @@ abstract class JdbcFrequencyBasedAnalyzer(columnsToGroupOn: Seq[String])
 
   def groupingColumns(): Seq[String] = { columnsToGroupOn }
 
-  override def computeStateFrom(table: Table): Option[JdbcFrequenciesAndNumRows] = {
-    Some(JdbcFrequencyBasedAnalyzer.computeFrequencies(table, groupingColumns()))
+  override def query(table: Table): String = {
+    // TODO: allow multi column
+    JdbcFrequencyBasedAnalyzer.query(table, groupingColumns().head)
+  }
+
+  override def computeState(result: ResultSet): Option[JdbcFrequenciesAndNumRows] = {
+    Some(JdbcFrequencyBasedAnalyzer.computeFrequencies(result))
   }
 
   /** We need at least one grouping column, and all specified columns must exist */
@@ -48,27 +53,18 @@ object JdbcFrequencyBasedAnalyzer {
     * WHERE colA IS NOT NULL AND colB IS NOT NULL AND ...
     * GROUP BY colA, colB, ...
     */
+  def query(table: Table, column: String): String = {
+    s"""
+       | SELECT $column as name, COUNT(*) AS absolute
+       |    FROM ${table.name}
+       |    GROUP BY $column
+        """.stripMargin
+  }
+
   def computeFrequencies(
-    table: Table,
-    groupingColumns: Seq[String],
+    result: ResultSet,
     numRows: Option[Long] = None)
   : JdbcFrequenciesAndNumRows = {
-
-    val connection = table.jdbcConnection
-    // TODO: allow multi column
-    val column = groupingColumns.head
-
-    val query =
-      s"""
-         | SELECT $column as name, COUNT(*) AS absolute
-         |    FROM ${table.name}
-         |    GROUP BY $column
-        """.stripMargin
-
-    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY)
-
-    val result = statement.executeQuery()
 
     def convertResultSet(resultSet: ResultSet,
                       map: Map[String, Long],
@@ -93,7 +89,6 @@ object JdbcFrequencyBasedAnalyzer {
     val frequenciesAndNumRows = convertResultSet(result, Map[String, Long](), 0)
     val frequencies = frequenciesAndNumRows._1
     val numRows = frequenciesAndNumRows._2
-    result.close()
     JdbcFrequenciesAndNumRows(frequencies, numRows)
   }
 }

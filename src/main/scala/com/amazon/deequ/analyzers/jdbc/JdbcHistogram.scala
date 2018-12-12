@@ -40,7 +40,49 @@ case class JdbcHistogram(column: String,
     PARAM_CHECKS :: hasTable() :: hasColumn(column) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[JdbcFrequenciesAndNumRows] = {
+  override def query(table: Table): String = {
+    s"""
+       | SELECT $column as name, COUNT(*) AS absolute
+       |    FROM ${table.name}
+       |    GROUP BY $column
+        """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[JdbcFrequenciesAndNumRows] = {
+
+    def convertResult(resultSet: ResultSet,
+                      map: Map[String, Long],
+                      total: Long): (Map[String, Long], Long) = {
+      if (result.next()) {
+        val distinctName = result.getObject("name")
+
+        val modifiedName = binningFunc match {
+          case Some(bin) => bin(distinctName)
+          case _ => distinctName
+        }
+
+        val discreteValue = modifiedName match {
+          case null => JdbcHistogram.NullFieldReplacement
+          case _ => modifiedName.toString
+        }
+
+        val absolute = result.getLong("absolute")
+
+        val frequency = map.getOrElse(discreteValue, 0L) + absolute
+        val entry = discreteValue -> frequency
+        convertResult(result, map + entry, total + absolute)
+      } else {
+        (map, total)
+      }
+    }
+    val frequenciesAndNumRows = convertResult(result, Map[String, Long](), 0)
+    val frequencies = frequenciesAndNumRows._1
+    val numRows = frequenciesAndNumRows._2
+
+    Some(JdbcFrequenciesAndNumRows(frequencies, numRows))
+  }
+
+  /*override def computeStateFrom(table: Table): Option[JdbcFrequenciesAndNumRows] = {
 
     val connection = table.jdbcConnection
 
@@ -87,7 +129,7 @@ case class JdbcHistogram(column: String,
 
     result.close()
     Some(JdbcFrequenciesAndNumRows(frequencies, numRows))
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): HistogramMetric = {
     state match {

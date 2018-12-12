@@ -16,24 +16,63 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.{JDBCType, ResultSet}
+import java.sql.Types._
+import java.sql.{JDBCType, PreparedStatement, ResultSet}
 
 import com.amazon.deequ.analyzers.State
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
-
-import java.sql.Types._
 
 import scala.util.{Failure, Success}
 
 trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
 
   /**
-    * Compute the state (sufficient statistics) from the data
+    * Return the query string of this analyzer
+    * @param table database table
+    * @return query string to send to the database
+    */
+  def query(table: Table): String
+
+  /**
+    * Insert parameters into prepared statement. Can be overwritten if required.
+    * @param statement prepared statement to fill
+    * @return filled statement
+    */
+  def insertParams(statement: PreparedStatement): PreparedStatement = {
+    statement
+  }
+
+  /**
+    * Establishes database connection and executes a query to retrieve the data required
+    * for state computation.
+    * @param table database table
+    * @param customQuery query string to send to the database
+    * @return
+    */
+  def queryData(table: Table, customQuery: Option[String] = None): ResultSet = {
+    val connection = table.jdbcConnection
+    val statement = connection.prepareStatement(customQuery.getOrElse(query(table)),
+      ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+    insertParams(statement).executeQuery()
+  }
+
+  /**
+    * Compute the state from the data (sufficient statistics) from the data
+    */
+  def computeState(result: ResultSet): Option[S]
+
+  /**
+    * Query data and return computed state if computation is possible
     * @param table database table
     * @return
     */
-  def computeStateFrom(table: Table): Option[S]
+  def computeStateFrom(table: Table): Option[S] = {
+    val result = queryData(table)
+    val state = computeState(result)
+    result.close()
+    state
+  }
 
   /**
     * Compute the metric from the state (sufficient statistics)

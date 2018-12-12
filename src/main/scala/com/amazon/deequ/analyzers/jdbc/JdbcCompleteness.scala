@@ -31,7 +31,31 @@ case class JdbcCompleteness(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | SUM(CASE WHEN $column IS NULL THEN 0 ELSE 1 END) AS num_matches,
+       | COUNT(*) AS num_rows
+       |FROM
+       | ${table.name}
+       |WHERE
+       | ${where.getOrElse("TRUE=TRUE")}
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[NumMatchesAndCount] = {
+    if (result.next()) {
+      val num_matches = result.getLong("num_matches")
+      val num_rows = result.getLong("num_rows")
+
+      if (num_rows > 0) {
+        return Some(NumMatchesAndCount(num_matches, num_rows))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[NumMatchesAndCount] = {
 
     val connection = table.jdbcConnection
 
@@ -62,7 +86,7 @@ case class JdbcCompleteness(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[NumMatchesAndCount]): DoubleMetric = {
     state match {

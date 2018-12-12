@@ -31,7 +31,46 @@ case class JdbcStandardDeviation(column: String, where: Option[String] = None)
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[StandardDeviationState] = {
+  override def query(table: Table): String = {
+    s"""
+       |SELECT
+       | col_count,
+       | col_avg,
+       | SUM(POWER($column - col_avg, 2)) AS col_m2
+       |FROM
+       | (SELECT
+       |  $column
+       | FROM
+       |  ${table.name}
+       | WHERE
+       |  ${where.getOrElse("TRUE=TRUE")}) AS A
+       |CROSS JOIN
+       | (SELECT
+       |   COUNT($column) AS col_count,
+       |   AVG($column) AS col_avg
+       |  FROM ${table.name}
+       |  WHERE
+       |   ${where.getOrElse("TRUE=TRUE")}) AS B
+       |GROUP BY
+       | col_count,
+       | col_avg
+      """.stripMargin
+  }
+
+  override def computeState(result: ResultSet): Option[StandardDeviationState] = {
+    if (result.next()) {
+      val col_avg = result.getDouble("col_avg")
+      val col_m2 = result.getDouble("col_m2")
+      val col_count = result.getDouble("col_count")
+
+      if (col_count > 0) {
+        return Some(StandardDeviationState(col_count, col_avg, col_m2))
+      }
+    }
+    None
+  }
+
+  /*override def computeStateFrom(table: Table): Option[StandardDeviationState] = {
 
     val connection = table.jdbcConnection
     val query =
@@ -76,7 +115,7 @@ case class JdbcStandardDeviation(column: String, where: Option[String] = None)
     }
     result.close()
     None
-  }
+  }*/
 
   override def computeMetricFrom(state: Option[StandardDeviationState]): DoubleMetric = {
     state match {

@@ -16,9 +16,10 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import java.sql.ResultSet
 import java.sql.Types._
 
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasTable, hasColumn, hasNoInjection}
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, hasTable}
 import com.amazon.deequ.analyzers.runners.{EmptyStateException, MetricCalculationException}
 import com.amazon.deequ.analyzers.{DataTypeHistogram, DataTypeInstances}
 import com.amazon.deequ.metrics.HistogramMetric
@@ -31,6 +32,15 @@ case class JdbcDataType(column: String,
 
   override def preconditions: Seq[Table => Unit] = {
     hasTable() :: hasColumn(column) :: hasNoInjection(where) :: Nil
+  }
+
+  //TODO: reorganize to fit into class hierarchy better
+  override def query(table: Table): String = {
+    s""
+  }
+
+  override def computeState(result: ResultSet): Option[DataTypeHistogram] = {
+    None
   }
 
   override def computeStateFrom(table: Table): Option[DataTypeHistogram] = {
