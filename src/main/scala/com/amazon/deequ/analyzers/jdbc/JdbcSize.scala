@@ -25,9 +25,7 @@ import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 
 case class JdbcSize(where: Option[String] = None)
-  extends JdbcAnalyzer[NumMatches, DoubleMetric] {
-
-  val column = "*"
+  extends JdbcStandardScanShareableAnalyzer[NumMatches]("Size", "*", Entity.Dataset) {
 
   override def preconditions: Seq[Table => Unit] = {
     hasTable() :: hasNoInjection(where):: Nil
@@ -61,17 +59,13 @@ case class JdbcSize(where: Option[String] = None)
     None
   }
 
-  override def computeMetricFrom(state: Option[NumMatches]): DoubleMetric = {
-    state match {
-      case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Size", column, Entity.Dataset)
-      case _ =>
-        toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcSize, all input values were NULL."))
-    }
+  override def aggregationFunctions(): Seq[String] = {
+    s"""SUM(CASE WHEN ${where.getOrElse("TRUE=TRUE")} THEN 1 ELSE 0 END)""" :: Nil
   }
 
-  override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Size", column, Entity.Dataset)
+  override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatches] = {
+    ifNoNullsIn(result, offset) { _ =>
+      NumMatches(result.getLong(offset))
+    }
   }
 }
