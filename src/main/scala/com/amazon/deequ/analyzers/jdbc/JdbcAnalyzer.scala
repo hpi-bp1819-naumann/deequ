@@ -18,22 +18,24 @@ package com.amazon.deequ.analyzers.jdbc
 
 import java.sql.{JDBCType, ResultSet}
 
-import com.amazon.deequ.analyzers.State
+import com.amazon.deequ.analyzers.{State, StateLoader, StatePersister}
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
-
 import java.sql.Types._
+import java.sql.ResultSet
+import com.amazon.deequ.analyzers.DoubleValuedState
 
 import scala.util.{Failure, Success}
 
+/** Common trait for all analyzers which generates metrics from states computed on relations */
 trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
 
   /**
     * Compute the state (sufficient statistics) from the data
-    * @param table database table
+    * @param data database table
     * @return
     */
-  def computeStateFrom(table: Table): Option[S]
+  def computeStateFrom(data: Table): Option[S]
 
   /**
     * Compute the metric from the state (sufficient statistics)
@@ -50,19 +52,31 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
     Seq.empty
   }
 
-  def validatePreconditions(table: Table): Unit = {
-    val exceptionOption = Preconditions.findFirstFailing(table, this.preconditions)
+  def validatePreconditions(data: Table): Unit = {
+    val exceptionOption = Preconditions.findFirstFailing(data, this.preconditions)
     if (exceptionOption.nonEmpty) {
       throw exceptionOption.get
     }
   }
 
-  def calculate(table: Table): M = {
+  /**
+    * Runs preconditions, calculates and returns the metric
+    *
+    * @param data Data frame being analyzed
+    * @param aggregateWith loader for previous states to include in the computation (optional)
+    * @param saveStatesWith persist internal states using this (optional)
+    * @return Returns failure metric in case preconditions fail.
+    */
+  def calculate(
+      data: Table,
+      aggregateWith: Option[JdbcStateLoader] = None,
+      saveStatesWith: Option[JdbcStatePersister] = None)
+    : M = {
 
     try {
-      validatePreconditions(table)
-      val state = computeStateFrom(table)
-      computeMetricFrom(state)
+      validatePreconditions(data)
+      val state = computeStateFrom(data)
+      calculateMetric(state, aggregateWith, saveStatesWith)
     } catch {
       case error: Exception => toFailureMetric(error)
     }
@@ -116,6 +130,67 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
     source.load[S](this).map { state =>
       computeMetricFrom(Option(state))
     }
+  }
+}
+
+/** An analyzer that runs a set of aggregation functions over the data,
+  * can share scans over the data */
+trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnalyzer[S, M] {
+
+  /** Defines the aggregations to compute on the data */
+  private[deequ] def aggregationFunctions(): Seq[String]
+
+  /** Computes the state from the result of the aggregation functions */
+  private[deequ] def fromAggregationResult(result: ResultSet, offset: Int): Option[S]
+
+  /** Runs aggregation functions directly, without scan sharing */
+  override def computeStateFrom(data: Table): Option[S] = {
+    val aggregations = aggregationFunctions()
+    val result = data.executeAggregations(aggregations)
+    fromAggregationResult(result, 0)
+  }
+
+  /** Produces a metric from the aggregation result */
+  private[deequ] def metricFromAggregationResult(
+                                                  result: ResultSet,
+                                                  offset: Int,
+                                                  aggregateWith: Option[JdbcStateLoader] = None,
+                                                  saveStatesWith: Option[JdbcStatePersister] = None)
+  : M = {
+
+    val state = fromAggregationResult(result, offset)
+
+    calculateMetric(state, aggregateWith, saveStatesWith)
+  }
+
+}
+
+/** A scan-shareable analyzer that produces a DoubleMetric */
+abstract class JdbcStandardScanShareableAnalyzer[S <: DoubleValuedState[_]](
+                                                                         name: String,
+                                                                         instance: String,
+                                                                         entity: Entity.Value = Entity.Column)
+  extends JdbcScanShareableAnalyzer[S, DoubleMetric] {
+
+  override def computeMetricFrom(state: Option[S]): DoubleMetric = {
+    state match {
+      case Some(theState) =>
+        metricFromValue(theState.metricValue(), name, instance, entity)
+      case _ =>
+        metricFromEmpty(this, name, instance, entity)
+    }
+  }
+
+  override private[deequ] def toFailureMetric(exception: Exception): DoubleMetric = {
+    metricFromFailure(exception, name, instance, entity)
+  }
+
+  override def preconditions: Seq[Table => Unit] = {
+    additionalPreconditions() ++ super.preconditions
+  }
+
+  protected def additionalPreconditions(): Seq[Table => Unit] = {
+    Seq.empty
   }
 }
 

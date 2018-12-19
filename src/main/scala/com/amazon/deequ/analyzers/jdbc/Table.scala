@@ -16,9 +16,27 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.Connection
+import java.sql.{Connection, ResultSet}
 
 case class Table(
   name: String,
-  jdbcConnection: Connection
-)
+  jdbcConnection: Connection) {
+
+  /**
+    * Builds and executes SQL statement and returns the ResultSet
+    *
+    * @param aggregations Sequence of aggregation functions
+    * @return Returns ResultSet of the query
+    */
+  def executeAggregations(aggregations: Seq[String]): ResultSet = {
+    val query =
+      s"""
+         |SELECT
+         | ${aggregations.mkString(", ")}
+         |FROM
+         | $name
+      """.stripMargin
+
+    jdbcConnection.createStatement().executeQuery(query)
+  }
+}
