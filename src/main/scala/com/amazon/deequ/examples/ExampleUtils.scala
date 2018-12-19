@@ -17,8 +17,34 @@
 package com.amazon.deequ.examples
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import java.sql.{Connection, DriverManager, ResultSet}
+import java.util.Properties
+
+import org.apache.spark.sql.SparkSession
+
+import scala.io.Source
 
 private[examples] object ExampleUtils {
+
+  def withJdbc(func: Connection => Unit): Unit = {
+    classOf[org.postgresql.Driver]
+    val jdbcUrl = "jdbc:postgresql://localhost:5432/food"
+    val connectionProperties = {
+      val url = getClass.getResource("/jdbc.properties")
+      if (url == null) {
+        throw new IllegalStateException("Unable to find jdbc.properties in src/main/resources!")
+      }
+      val properties = new Properties()
+      properties.load(Source.fromURL(url).bufferedReader())
+      properties
+    }
+    val connection = DriverManager.getConnection(jdbcUrl, connectionProperties())
+    try {
+      func(connection)
+    } finally {
+      connection.close()
+    }
+  }
 
   def withSpark(func: SparkSession => Unit): Unit = {
     val session = SparkSession.builder()

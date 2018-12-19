@@ -24,7 +24,7 @@ import com.amazon.deequ.metrics.DoubleMetric
 
 /** Base class for all analyzers that operate the frequencies of groups in the data */
 abstract class JdbcFrequencyBasedAnalyzer(columnsToGroupOn: Seq[String])
-  extends JdbcAnalyzer[JdbcFrequenciesAndNumRows, DoubleMetric] {
+  extends JdbcGroupingAnalyzer[JdbcFrequenciesAndNumRows, DoubleMetric] {
 
   def groupingColumns(): Seq[String] = { columnsToGroupOn }
 
