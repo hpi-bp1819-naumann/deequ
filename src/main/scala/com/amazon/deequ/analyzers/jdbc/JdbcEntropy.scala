@@ -19,8 +19,8 @@ package com.amazon.deequ.analyzers.jdbc
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.DoubleMetric
 
-class JdbcEntropy(columns: Seq[String])
-  extends JdbcScanShareableFrequencyBasedAnalyzer("Entropy", columns) {
+case class JdbcEntropy(column: String)
+  extends JdbcScanShareableFrequencyBasedAnalyzer("Entropy", column :: Nil) {
 
   override def calculateMetricValue(state: JdbcFrequenciesAndNumRows): DoubleMetric = {
     if (state.frequencies.isEmpty) {
@@ -34,9 +34,10 @@ class JdbcEntropy(columns: Seq[String])
     toSuccessMetric(entropy)
   }
 }
-
+/*
 object JdbcEntropy {
   def apply(column: String): JdbcEntropy = {
     new JdbcEntropy(column :: Nil)
   }
 }
+*/

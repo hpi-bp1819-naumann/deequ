@@ -69,10 +69,58 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   }
 
   private[deequ] def toFailureMetric(failure: Exception): M
+
+  protected def calculateMetric(
+                                 state: Option[S],
+                                 aggregateWith: Option[JdbcStateLoader] = None,
+                                 saveStatesWith: Option[JdbcStatePersister] = None)
+  : M = {
+
+    // Try to load the state
+    val loadedState: Option[S] = aggregateWith.flatMap { _.load[S](this) }
+
+    // Potentially merge existing and loaded state
+    val stateToComputeMetricFrom: Option[S] = JdbcAnalyzers.merge(state, loadedState)
+
+    // Persist the state if it is not empty and a persister was provided
+    stateToComputeMetricFrom
+      .foreach { state =>
+        saveStatesWith.foreach {
+          _.persist[S](this, state)
+        }
+      }
+
+    computeMetricFrom(stateToComputeMetricFrom)
+  }
+
+  private[deequ] def aggregateStateTo(
+                                       sourceA: JdbcStateLoader,
+                                       sourceB: JdbcStateLoader,
+                                       target: JdbcStatePersister)
+  : Unit = {
+
+    val maybeStateA = sourceA.load[S](this)
+    val maybeStateB = sourceB.load[S](this)
+
+    val aggregated = (maybeStateA, maybeStateB) match {
+      case (Some(stateA), Some(stateB)) => Some(stateA.sumUntyped(stateB).asInstanceOf[S])
+      case (Some(stateA), None) => Some(stateA)
+      case (None, Some(stateB)) => Some(stateB)
+      case _ => None
+    }
+
+    aggregated.foreach { state => target.persist[S](this, state) }
+  }
+
+  private[deequ] def loadStateAndComputeMetric(source: JdbcStateLoader): Option[M] = {
+    source.load[S](this).map { state =>
+      computeMetricFrom(Option(state))
+    }
+  }
 }
 
 /** Base class for analyzers that require to group the data by specific columns */
-abstract class GroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnalyzer[S, M] {
+abstract class JdbcGroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnalyzer[S, M] {
 
   /** The columns to group the data by */
   def groupingColumns(): Seq[String]

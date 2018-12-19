@@ -104,6 +104,8 @@ object JdbcFrequencyBasedAnalyzer {
 abstract class JdbcScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupOn: Seq[String])
   extends JdbcFrequencyBasedAnalyzer(columnsToGroupOn) {
 
+  def aggregationFunctions(numRows: Long): Seq[String]
+
   override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): DoubleMetric = {
 
     state match {
@@ -123,4 +125,11 @@ abstract class JdbcScanShareableFrequencyBasedAnalyzer(name: String, columnsToGr
   }
 
   def calculateMetricValue(state: JdbcFrequenciesAndNumRows): DoubleMetric
+
+  def fromAggregationResult(result: Seq[Option[Double]], offset: Int): DoubleMetric = {
+    result(offset) match {
+      case None => metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
+      case Some(theResult) => toSuccessMetric(theResult)
+    }
+  }
 }

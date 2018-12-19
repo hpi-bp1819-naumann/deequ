@@ -25,7 +25,7 @@ import com.amazon.deequ.metrics._
 import scala.util.{Failure, Try}
 
 case class JdbcHistogram(column: String,
-                         binningFunc: Option[Any => Any] = None,
+                         binningUdf: Option[Any => Any] = None,
                          maxDetailBins: Integer = JdbcHistogram.MaximumAllowedDetailBins)
   extends JdbcAnalyzer[JdbcFrequenciesAndNumRows, HistogramMetric] {
 
@@ -62,7 +62,7 @@ case class JdbcHistogram(column: String,
       if (result.next()) {
         val distinctName = result.getObject("name")
 
-        val modifiedName = binningFunc match {
+        val modifiedName = binningUdf match {
           case Some(bin) => bin(distinctName)
           case _ => distinctName
         }
