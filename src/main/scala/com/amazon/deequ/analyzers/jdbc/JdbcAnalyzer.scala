@@ -175,14 +175,14 @@ abstract class JdbcStandardScanShareableAnalyzer[S <: DoubleValuedState[_]](
   override def computeMetricFrom(state: Option[S]): DoubleMetric = {
     state match {
       case Some(theState) =>
-        metricFromValue(theState.metricValue(), name, instance, entity)
+        JdbcAnalyzers.metricFromValue(theState.metricValue(), name, instance, entity)
       case _ =>
-        metricFromEmpty(this, name, instance, entity)
+        JdbcAnalyzers.metricFromEmpty(this, name, instance, entity)
     }
   }
 
   override private[deequ] def toFailureMetric(exception: Exception): DoubleMetric = {
-    metricFromFailure(exception, name, instance, entity)
+    JdbcAnalyzers.metricFromFailure(exception, name, instance, entity)
   }
 
   override def preconditions: Seq[Table => Unit] = {

@@ -38,7 +38,7 @@ private[examples] object ExampleUtils {
       properties.load(Source.fromURL(url).bufferedReader())
       properties
     }
-    val connection = DriverManager.getConnection(jdbcUrl, connectionProperties())
+    val connection = DriverManager.getConnection(jdbcUrl, connectionProperties)
     try {
       func(connection)
     } finally {
