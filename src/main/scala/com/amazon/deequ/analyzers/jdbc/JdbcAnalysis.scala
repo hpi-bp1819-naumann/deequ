@@ -16,8 +16,7 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import com.amazon.deequ.analyzers.jdbc.runners.JdbcAnalysisRunner
-import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
+import com.amazon.deequ.analyzers.runners.{JdbcAnalysisRunner, JdbcAnalyzerContext}
 import com.amazon.deequ.metrics.Metric
 import org.apache.spark.storage.StorageLevel
 

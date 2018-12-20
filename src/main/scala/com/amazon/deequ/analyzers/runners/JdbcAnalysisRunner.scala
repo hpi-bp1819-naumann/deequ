@@ -16,7 +16,7 @@
 
 package com.amazon.deequ.analyzers.runners
 
-import java.sql.Connection
+import java.sql.{Connection, ResultSet}
 
 import com.amazon.deequ.analyzers.State
 import com.amazon.deequ.analyzers.jdbc._
@@ -345,7 +345,7 @@ object JdbcAnalysisRunner {
     * to a failure metric */
   private def successOrFailureMetricFrom(
       analyzer: JdbcScanShareableAnalyzer[State[_], Metric[_]],
-      aggregationResult: Seq[Option[Double]],
+      aggregationResult: ResultSet,
       offset: Int,
       aggregateWith: Option[JdbcStateLoader],
       saveStatesTo: Option[JdbcStatePersister])
@@ -358,6 +358,7 @@ object JdbcAnalysisRunner {
     }
   }
 
+  /*
   /** Compute frequency based analyzer metric from aggregation result, mapping generic exceptions
     * to a failure metric */
   private def successOrFailureMetricFrom(
@@ -371,7 +372,7 @@ object JdbcAnalysisRunner {
     } catch {
       case error: Exception => analyzer.toFailureMetric(error)
     }
-  }
+  }*/
 
   /**
     * Compute the metrics from the analyzers configured in the analyis, instead of running
@@ -558,6 +559,3 @@ object JdbcAnalysisRunner {
   }
 */
 }
-
-class ReusingNotPossibleResultsMissingException(message: String)
-  extends RuntimeException(message)

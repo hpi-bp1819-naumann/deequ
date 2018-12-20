@@ -60,11 +60,11 @@ class JdbcInMemoryMetricsRepository() extends JdbcMetricsRepository {
 
   /** Get a builder class to construct a loading query to get AnalysisResults */
   def load(): JdbcMetricsRepositoryMultipleResultsLoader = {
-    new LimitedInMemoryMetricsRepositoryMultipleResultsLoader(resultsRepository)
+    new JdbcLimitedInMemoryMetricsRepositoryMultipleResultsLoader(resultsRepository)
   }
 }
 
-class LimitedInMemoryMetricsRepositoryMultipleResultsLoader(
+class JdbcLimitedInMemoryMetricsRepositoryMultipleResultsLoader(
     resultsRepository:
     ConcurrentHashMap[ResultKey, JdbcAnalysisResult])
   extends JdbcMetricsRepositoryMultipleResultsLoader {

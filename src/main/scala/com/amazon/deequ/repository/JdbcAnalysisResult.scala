@@ -33,6 +33,7 @@ private[repository] object JdbcAnalysisResult {
 
   private val DATASET_DATE_FIELD = "dataset_date"
 
+  /*
   /**
     * Get a AnalysisResult as DataFrame containing the success metrics
     *
@@ -60,7 +61,7 @@ private[repository] object JdbcAnalysisResult {
       }
 
     analyzerContextDF
-  }
+  }*/
 
   /**
     * Get a AnalysisResult as Json containing the success metrics

@@ -20,8 +20,7 @@ import java.io.{BufferedInputStream, BufferedOutputStream}
 import java.sql.Connection
 import java.util.UUID.randomUUID
 
-import com.amazon.deequ.analyzers.jdbc.repository.{JdbcAnalysisResultSerde, JdbcMetricsRepository, JdbcMetricsRepositoryMultipleResultsLoader}
-import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, repository}
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
 import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.repository._
@@ -29,6 +28,10 @@ import com.google.common.io.Closeables
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+
+/*
+
+TODO: add support for writing to local filesystem
 
 /** A Repository implementation using a file system */
 class JdbcFileSystemMetricsRepository(connection: Connection, path: String)
@@ -227,3 +230,4 @@ object JdbcFileSystemMetricsRepository {
     (fs, qualifiedPath)
   }
 }
+*/

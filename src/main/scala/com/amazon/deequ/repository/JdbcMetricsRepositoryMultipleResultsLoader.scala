@@ -59,6 +59,7 @@ trait JdbcMetricsRepositoryMultipleResultsLoader {
     */
   def get(): Seq[JdbcAnalysisResult]
 
+  /*
   /**
     * Get the AnalysisResult as DataFrame
     */
@@ -78,6 +79,7 @@ trait JdbcMetricsRepositoryMultipleResultsLoader {
         .reduce(MetricsRepositoryMultipleResultsLoader.dataFrameUnion)
     }
   }
+  */
 
   /** Get the AnalysisResult as DataFrame */
   def getSuccessMetricsAsJson(withTags: Seq[String] = Seq.empty): String = {
@@ -96,6 +98,7 @@ trait JdbcMetricsRepositoryMultipleResultsLoader {
   }
 }
 
+/*
 private[repository] object MetricsRepositoryMultipleResultsLoader {
 
   def jsonUnion(jsonOne: String, jsonTwo: String): String = {
@@ -138,3 +141,4 @@ private[repository] object MetricsRepositoryMultipleResultsLoader {
     }
   }
 }
+*/

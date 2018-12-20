@@ -21,7 +21,9 @@ import com.amazon.deequ.VerificationSuite
 import com.amazon.deequ.checks.{Check, CheckLevel}
 import com.amazon.deequ.checks.CheckStatus._
 import com.amazon.deequ.constraints.ConstraintStatus
-import com.amazon.deequ.analyzers.jdbc.Table
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
+import com.amazon.deequ.analyzers.runners.JdbcAnalysisRunner
+import com.amazon.deequ.metrics.Metric
 
 private[examples] object JdbcBasicExample extends App {
 
@@ -68,5 +70,20 @@ private[examples] object JdbcBasicExample extends App {
         }
     }
 
+  }
+}
+
+
+import com.amazon.deequ.analyzers.jdbc._
+
+private[examples] object JdbcBasicAnalysisExample extends App {
+
+
+  withJdbc { connection =>
+    val table = Table("food_des", connection)
+    val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
+      JdbcSum("fat_factor"), JdbcMinimum("fat_factor"))
+
+    JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
   }
 }

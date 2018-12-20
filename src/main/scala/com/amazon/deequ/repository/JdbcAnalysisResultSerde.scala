@@ -32,6 +32,7 @@ import scala.collection.JavaConverters._
 import scala.collection._
 import scala.util.{Failure, Success, Try}
 
+/*
 private[repository] object JsonSerializationConstants {
 
   val STRING_MAP_TYPE: Type = new TypeToken[JList[JMap[String, Any]]]() {}.getType
@@ -68,6 +69,7 @@ private[deequ] object SimpleResultSerde {
       .map(map => immutable.Map(map.asScala.toList: _*))
   }
 }
+*/
 
 private[deequ] object JdbcAnalysisResultSerde {
 
@@ -75,7 +77,7 @@ private[deequ] object JdbcAnalysisResultSerde {
     val gson = new GsonBuilder()
       .registerTypeAdapter(classOf[ResultKey], ResultKeySerializer)
       .registerTypeAdapter(classOf[JdbcAnalysisResult], JdbcAnalysisResultSerializer)
-      .registerTypeAdapter(classOf[JdbcAnalyzerContext], AnalyzerContextSerializer)
+      .registerTypeAdapter(classOf[JdbcAnalyzerContext], JdbcAnalyzerContextSerializer)
       .registerTypeAdapter(classOf[JdbcAnalyzer[State[_], Metric[_]]],
         JdbcAnalyzerSerializer)
       .registerTypeAdapter(classOf[Metric[_]], MetricSerializer)
@@ -89,7 +91,7 @@ private[deequ] object JdbcAnalysisResultSerde {
   def deserialize(analysisResults: String): Seq[JdbcAnalysisResult] = {
     val gson = new GsonBuilder()
       .registerTypeAdapter(classOf[ResultKey], ResultKeyDeserializer)
-      .registerTypeAdapter(classOf[JdbcAnalysisResult], AnalysisResultDeserializer)
+      .registerTypeAdapter(classOf[JdbcAnalysisResult], JdbcAnalysisResultDeserializer)
       .registerTypeAdapter(classOf[JdbcAnalyzerContext], AnalyzerContextDeserializer)
       .registerTypeAdapter(classOf[JdbcAnalyzer[State[_], Metric[_]]], AnalyzerDeserializer)
       .registerTypeAdapter(classOf[Metric[_]], MetricDeserializer)
@@ -102,10 +104,11 @@ private[deequ] object JdbcAnalysisResultSerde {
   }
 }
 
+/*
 private[deequ] object ResultKeySerializer extends JsonSerializer[ResultKey] {
 
   override def serialize(resultKey: ResultKey, t: Type,
-    jsonSerializationContext: JsonSerializationContext): JsonElement = {
+                         jsonSerializationContext: JsonSerializationContext): JsonElement = {
 
     val result = new JsonObject()
 
@@ -126,11 +129,12 @@ private[deequ] object ResultKeyDeserializer extends JsonDeserializer[ResultKey] 
     val date = jsonObject.get(DATASET_DATE_FIELD).getAsLong
     val tags = context.deserialize(jsonObject.get(TAGS_FIELD),
       new TypeToken[JHashMap[String, String]]() {}.getType)
-        .asInstanceOf[JHashMap[String, String]].asScala.toMap
+      .asInstanceOf[JHashMap[String, String]].asScala.toMap
 
     ResultKey(date, tags)
   }
 }
+*/
 
 private[deequ] object JdbcAnalysisResultSerializer extends JsonSerializer[JdbcAnalysisResult] {
 
@@ -148,7 +152,7 @@ private[deequ] object JdbcAnalysisResultSerializer extends JsonSerializer[JdbcAn
   }
 }
 
-private[deequ] object AnalysisResultDeserializer extends JsonDeserializer[JdbcAnalysisResult] {
+private[deequ] object JdbcAnalysisResultDeserializer extends JsonDeserializer[JdbcAnalysisResult] {
 
   override def deserialize(jsonElement: JsonElement, t: Type,
                            context: JsonDeserializationContext): JdbcAnalysisResult = {
@@ -163,7 +167,7 @@ private[deequ] object AnalysisResultDeserializer extends JsonDeserializer[JdbcAn
   }
 }
 
-private[deequ] object AnalyzerContextSerializer extends JsonSerializer[JdbcAnalyzerContext] {
+private[deequ] object JdbcAnalyzerContextSerializer extends JsonSerializer[JdbcAnalyzerContext] {
 
   override def serialize(analyzerContext: JdbcAnalyzerContext, t: Type,
     context: JsonSerializationContext): JsonElement = {
@@ -187,7 +191,7 @@ private[deequ] object AnalyzerContextSerializer extends JsonSerializer[JdbcAnaly
   }
 }
 
-private[deequ] object AnalyzerContextDeserializer extends JsonDeserializer[JdbcAnalyzerContext] {
+private[deequ] object JdbcAnalyzerContextDeserializer extends JsonDeserializer[JdbcAnalyzerContext] {
 
   override def deserialize(jsonElement: JsonElement, t: Type,
     context: JsonDeserializationContext): JdbcAnalyzerContext = {
@@ -349,7 +353,7 @@ private[deequ] object JdbcAnalyzerSerializer
   }
 }
 
-private[deequ] object AnalyzerDeserializer
+private[deequ] object JdbcAnalyzerDeserializer
   extends JsonDeserializer[JdbcAnalyzer[State[_], Metric[_]]] {
 
   private[this] def getColumnsAsSeq(context: JsonDeserializationContext,
@@ -488,7 +492,7 @@ private[deequ] object AnalyzerDeserializer
 /*
  * TODO: probably not needed
  */
-
+/*
 private[deequ] object MetricSerializer extends JsonSerializer[Metric[_]] {
 
   override def serialize(metric: Metric[_], t: Type,
@@ -627,3 +631,4 @@ private[deequ] object DistributionDeserializer extends JsonDeserializer[Distribu
     Distribution(values, jsonObject.get("numberOfBins").getAsLong)
   }
 }
+*/
