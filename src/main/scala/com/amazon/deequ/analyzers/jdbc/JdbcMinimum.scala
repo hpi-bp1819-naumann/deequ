@@ -23,6 +23,7 @@ import com.amazon.deequ.analyzers.MinState
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable, isNumeric, hasNoInjection}
 import com.amazon.deequ.analyzers.runners.EmptyStateException
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
+import JdbcAnalyzers._
 
 
 case class JdbcMinimum(column: String, where: Option[String] = None)
@@ -39,7 +40,7 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
+  override protected def additionalPreconditions(): Seq[Table => Unit] = {
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 }
