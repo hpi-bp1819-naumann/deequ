@@ -381,7 +381,8 @@ private[deequ] object JdbcAnalyzers {
       (func: Unit => S)
   : Option[S] = {
 
-    val nullInResult = (offset until offset + howMany).exists { index => result.getObject(index + 1) != null }
+    val nullInResult = (offset until offset + howMany).exists { index =>
+      result.getObject(index + 1) == null }
 
     if (nullInResult) {
       None
@@ -392,6 +393,12 @@ private[deequ] object JdbcAnalyzers {
 
   def entityFrom(columns: Seq[String]): Entity.Value = {
     if (columns.size == 1) Entity.Column else Entity.Mutlicolumn
+  }
+
+  def conditionalSelection(column: String, where: Option[String]): String = {
+    where
+      .map { condition => s"CASE WHEN ($condition) THEN $column ELSE NULL END" }
+      .getOrElse(column)
   }
 
   def conditionalCount(where: Option[String]): String = {
