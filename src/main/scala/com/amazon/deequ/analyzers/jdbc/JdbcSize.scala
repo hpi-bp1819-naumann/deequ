@@ -31,41 +31,13 @@ case class JdbcSize(where: Option[String] = None)
     hasTable() :: hasNoInjection(where):: Nil
   }
 
-  override def computeStateFrom(table: Table): Option[NumMatches] = {
-
-    val connection = table.jdbcConnection
-
-    val query =
-      s"""
-         |SELECT
-         | COUNT (*) AS num_rows
-         |FROM
-         | ${table.name}
-         |WHERE
-         | ${where.getOrElse("TRUE=TRUE")}
-      """.stripMargin
-
-    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY)
-
-    val result = statement.executeQuery()
-
-    if (result.next()) {
-      val num_rows = result.getLong("num_rows")
-      result.close()
-      return Some(NumMatches(num_rows))
-    }
-    result.close()
-    None
-  }
-
   override def aggregationFunctions(): Seq[String] = {
-    s"""SUM(CASE WHEN ${where.getOrElse("TRUE=TRUE")} THEN 1 ELSE 0 END)""" :: Nil
+    JdbcAnalyzers.conditionalCount(where) :: Nil
   }
 
   override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatches] = {
-    ifNoNullsIn(result, offset) { _ =>
-      NumMatches(result.getLong(offset))
+    JdbcAnalyzers.ifNoNullsIn(result, offset) { _ =>
+      NumMatches(result.getLong(offset + 1))
     }
   }
 }

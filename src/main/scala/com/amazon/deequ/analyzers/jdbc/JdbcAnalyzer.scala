@@ -45,13 +45,14 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   def computeMetricFrom(state: Option[S]): M
 
   /**
-    * A set of assertions that must hold on the database table
+    * A set of assertions that must hold on the schema of the database table
     * @return
     */
   def preconditions: Seq[Table => Unit] = {
     Seq.empty
   }
 
+  // TODO: This function is not defined in Analyzer.scala
   def validatePreconditions(data: Table): Unit = {
     val exceptionOption = Preconditions.findFirstFailing(data, this.preconditions)
     if (exceptionOption.nonEmpty) {
@@ -62,7 +63,7 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   /**
     * Runs preconditions, calculates and returns the metric
     *
-    * @param data Data frame being analyzed
+    * @param data Database table being analyzed
     * @param aggregateWith loader for previous states to include in the computation (optional)
     * @param saveStatesWith persist internal states using this (optional)
     * @return Returns failure metric in case preconditions fail.
@@ -85,9 +86,9 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   private[deequ] def toFailureMetric(failure: Exception): M
 
   protected def calculateMetric(
-                                 state: Option[S],
-                                 aggregateWith: Option[JdbcStateLoader] = None,
-                                 saveStatesWith: Option[JdbcStatePersister] = None)
+      state: Option[S],
+      aggregateWith: Option[JdbcStateLoader] = None,
+      saveStatesWith: Option[JdbcStatePersister] = None)
   : M = {
 
     // Try to load the state
@@ -108,9 +109,9 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   }
 
   private[deequ] def aggregateStateTo(
-                                       sourceA: JdbcStateLoader,
-                                       sourceB: JdbcStateLoader,
-                                       target: JdbcStatePersister)
+      sourceA: JdbcStateLoader,
+      sourceB: JdbcStateLoader,
+      target: JdbcStatePersister)
   : Unit = {
 
     val maybeStateA = sourceA.load[S](this)
@@ -152,10 +153,10 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
 
   /** Produces a metric from the aggregation result */
   private[deequ] def metricFromAggregationResult(
-                                                  result: ResultSet,
-                                                  offset: Int,
-                                                  aggregateWith: Option[JdbcStateLoader] = None,
-                                                  saveStatesWith: Option[JdbcStatePersister] = None)
+      result: ResultSet,
+      offset: Int,
+      aggregateWith: Option[JdbcStateLoader] = None,
+      saveStatesWith: Option[JdbcStatePersister] = None)
   : M = {
 
     val state = fromAggregationResult(result, offset)
@@ -167,9 +168,9 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
 
 /** A scan-shareable analyzer that produces a DoubleMetric */
 abstract class JdbcStandardScanShareableAnalyzer[S <: DoubleValuedState[_]](
-                                                                         name: String,
-                                                                         instance: String,
-                                                                         entity: Entity.Value = Entity.Column)
+     name: String,
+     instance: String,
+     entity: Entity.Value = Entity.Column)
   extends JdbcScanShareableAnalyzer[S, DoubleMetric] {
 
   override def computeMetricFrom(state: Option[S]): DoubleMetric = {
@@ -350,9 +351,9 @@ private[deequ] object JdbcAnalyzers {
 
   /** Merges a sequence of potentially empty states. */
   def merge[S <: State[_]](
-                            state: Option[S],
-                            anotherState: Option[S],
-                            moreStates: Option[S]*)
+      state: Option[S],
+      anotherState: Option[S],
+      moreStates: Option[S]*)
   : Option[S] = {
 
     val statesToMerge = Seq(state, anotherState) ++ moreStates
@@ -370,8 +371,31 @@ private[deequ] object JdbcAnalyzers {
     }
   }
 
+  /** Tests whether the result columns from offset to offset + howMany are non-null */
+  def ifNoNullsIn[S <: State[_]](
+      result: ResultSet,
+      offset: Int,
+      howMany: Int = 1)
+      (func: Unit => S)
+  : Option[S] = {
+
+    val nullInResult = (offset until offset + howMany).exists { index => result.getObject(index + 1) != null }
+
+    if (nullInResult) {
+      None
+    } else {
+      Option(func(Unit))
+    }
+  }
+
   def entityFrom(columns: Seq[String]): Entity.Value = {
     if (columns.size == 1) Entity.Column else Entity.Mutlicolumn
+  }
+
+  def conditionalCount(where: Option[String]): String = {
+    where
+      .map { filter => s"""SUM(CASE WHEN ($filter) THEN 1 ELSE 0 END)""" }
+      .getOrElse("""COUNT(*)""")
   }
 
   def metricFromValue(

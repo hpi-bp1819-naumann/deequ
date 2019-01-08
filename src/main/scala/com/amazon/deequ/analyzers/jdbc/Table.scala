@@ -37,6 +37,9 @@ case class Table(
          | $name
       """.stripMargin
 
-    jdbcConnection.createStatement().executeQuery(query)
+    val result = jdbcConnection.createStatement().executeQuery(query)
+    // TODO: Test return value of next() and throw exception
+    result.next()
+    result
   }
 }
