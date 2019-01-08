@@ -197,10 +197,11 @@ object JdbcAnalysisRunner {
     resultingAnalyzerContext
   }
 
-  private[this] def saveOrAppendResultsIfNecessary(
-                                                    resultingAnalyzerContext: JdbcAnalyzerContext,
-                                                    metricsRepository: Option[JdbcMetricsRepository],
-                                                    saveOrAppendResultsWithKey: Option[ResultKey])
+  private[this]
+  def saveOrAppendResultsIfNecessary(
+                                      resultingAnalyzerContext: JdbcAnalyzerContext,
+                                      metricsRepository: Option[JdbcMetricsRepository],
+                                      saveOrAppendResultsWithKey: Option[ResultKey])
     : Unit = {
 
     metricsRepository.foreach { repository =>
@@ -266,10 +267,12 @@ object JdbcAnalysisRunner {
     : (Long, JdbcAnalyzerContext) = {
 
     /* Compute the frequencies of the request groups once */
-    var frequenciesAndNumRows = JdbcFrequencyBasedAnalyzer.computeFrequencies(table, groupingColumns)
+    var frequenciesAndNumRows =
+      JdbcFrequencyBasedAnalyzer.computeFrequencies(table, groupingColumns)
 
     /* Pick one analyzer to store the state for */
-    val sampleAnalyzer = analyzers.head.asInstanceOf[JdbcAnalyzer[JdbcFrequenciesAndNumRows, Metric[_]]]
+    val sampleAnalyzer =
+      analyzers.head.asInstanceOf[JdbcAnalyzer[JdbcFrequenciesAndNumRows, Metric[_]]]
 
     /* Potentially aggregate states */
     aggregateWith
@@ -299,9 +302,9 @@ object JdbcAnalysisRunner {
     val others = analyzers
     val sharedResults = JdbcAnalyzerContext.empty
 
-    /*
-    /* Identify shareable analyzers */
-    val (shareable, others) = analyzers.partition { _.isInstanceOf[JdbcScanShareableAnalyzer[_, _]] }
+    /* Identify shareable analyzers *
+    val (shareable, others) =
+      analyzers.partition { _.isInstanceOf[JdbcScanShareableAnalyzer[_, _]] }
 
     val shareableAnalyzers =
       shareable.map { _.asInstanceOf[JdbcScanShareableAnalyzer[State[_], Metric[_]]] }
@@ -358,9 +361,8 @@ object JdbcAnalysisRunner {
     }
   }
 
-  /*
   /** Compute frequency based analyzer metric from aggregation result, mapping generic exceptions
-    * to a failure metric */
+    * to a failure metric *
   private def successOrFailureMetricFrom(
       analyzer: JdbcScanShareableFrequencyBasedAnalyzer,
       aggregationResult: Seq[Option[Double]],
@@ -439,7 +441,7 @@ object JdbcAnalysisRunner {
       .toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]]
 
 
-    val groupedResults = JdbcAnalyzerContext.empty/*if (groupingAnalyzers.isEmpty) {
+    val groupedResults = JdbcAnalyzerContext.empty /* if (groupingAnalyzers.isEmpty) {
       JdbcAnalyzerContext.empty
     } else {
       groupingAnalyzers
@@ -471,7 +473,8 @@ object JdbcAnalysisRunner {
     /* One of the analyzers must have the state persisted */
     val states = analyzers.flatMap { analyzer =>
       stateLoader
-        .load[JdbcFrequenciesAndNumRows](analyzer.asInstanceOf[JdbcAnalyzer[JdbcFrequenciesAndNumRows, _]])
+        .load[JdbcFrequenciesAndNumRows](
+          analyzer.asInstanceOf[JdbcAnalyzer[JdbcFrequenciesAndNumRows, _]])
     }
 
     require(states.nonEmpty)
@@ -500,7 +503,8 @@ object JdbcAnalysisRunner {
       //frequenciesAndNumRows.frequencies.persist(storageLevelOfGroupedDataForMultiplePasses)
     }
 
-    val shareableAnalyzers = shareable.map { _.asInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
+    val shareableAnalyzers = shareable.map {
+      _.asInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
 
     val metricsByAnalyzer = if (shareableAnalyzers.nonEmpty) {
 
@@ -555,7 +559,8 @@ object JdbcAnalysisRunner {
     // TODO
     //frequenciesAndNumRows.frequencies.unpersist()
 
-    JdbcAnalyzerContext((metricsByAnalyzer ++ otherMetrics).toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
+    JdbcAnalyzerContext(
+      (metricsByAnalyzer ++ otherMetrics).toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
   }
 */
 }

@@ -34,13 +34,12 @@ private[repository] object JdbcAnalysisResult {
   private val DATASET_DATE_FIELD = "dataset_date"
 
   /*
-  /**
     * Get a AnalysisResult as DataFrame containing the success metrics
     *
     * @param analysisResult      The AnalysisResult to convert
     * @param forAnalyzers Only include metrics for these Analyzers in the DataFrame
     * @param withTags            Only include these Tags in the DataFrame
-    */
+    *
   def getSuccessMetricsAsDataFrame(
                                     connection: Connection,
                                     analysisResult: JdbcAnalysisResult,

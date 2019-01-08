@@ -131,7 +131,8 @@ class JdbcLimitedInMemoryMetricsRepositoryMultipleResultsLoader(
           .metricMap
           .filterKeys(analyzer => forAnalyzers.isEmpty || forAnalyzers.get.contains(analyzer))
 
-        deequ.repository.JdbcAnalysisResult(analysisResult.resultKey, JdbcAnalyzerContext(requestedMetrics))
+        deequ.repository.JdbcAnalysisResult(analysisResult.resultKey,
+          JdbcAnalyzerContext(requestedMetrics))
       }
       .toSeq
   }

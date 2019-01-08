@@ -81,7 +81,8 @@ class JdbcAnalysisRunBuilder(val table: Table) {
     * @param metricsRepository A metrics repository to store and load results associated with the
     *                          run
     */
-  def useRepository(metricsRepository: JdbcMetricsRepository): JdbcAnalysisRunBuilderWithRepository = {
+  def useRepository(metricsRepository: JdbcMetricsRepository):
+  JdbcAnalysisRunBuilderWithRepository = {
 
     new JdbcAnalysisRunBuilderWithRepository(this, Option(metricsRepository))
   }

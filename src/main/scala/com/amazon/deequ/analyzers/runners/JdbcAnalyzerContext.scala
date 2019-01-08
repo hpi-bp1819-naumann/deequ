@@ -44,7 +44,8 @@ object JdbcAnalyzerContext {
 
   def empty: JdbcAnalyzerContext = JdbcAnalyzerContext(Map.empty)
 
- /* def successMetricsAsDataFrame(
+  /*
+  def successMetricsAsDataFrame(
                                  connection: Connection,
                                  analyzerContext: JdbcAnalyzerContext,
                                  forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty)
@@ -74,9 +75,10 @@ object JdbcAnalyzerContext {
     SimpleResultSerde.serialize(result)
   }
 
-  private[this] def getSimplifiedMetricOutputForSelectedAnalyzers(
-                                                                   analyzerContext: JdbcAnalyzerContext,
-                                                                   forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]])
+  private[this]
+  def getSimplifiedMetricOutputForSelectedAnalyzers(
+                                                     analyzerContext: JdbcAnalyzerContext,
+                                                     forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]])
     : Seq[SimpleMetricOutput] = {
 
     val selectedMetrics = analyzerContext.metricMap

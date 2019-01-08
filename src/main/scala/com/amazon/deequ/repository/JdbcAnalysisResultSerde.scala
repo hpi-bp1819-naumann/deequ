@@ -179,7 +179,8 @@ private[deequ] object JdbcAnalyzerContextSerializer extends JsonSerializer[JdbcA
     analyzerContext.metricMap.foreach { case (analyzer, metric) =>
       val entry = new JsonObject()
 
-      entry.add(ANALYZER_FIELD, context.serialize(analyzer, classOf[JdbcAnalyzer[State[_], Metric[_]]]))
+      entry.add(ANALYZER_FIELD, context.serialize(analyzer,
+        classOf[JdbcAnalyzer[State[_], Metric[_]]]))
       entry.add(METRIC_FIELD, context.serialize(metric, classOf[Metric[_]]))
 
       metricMap.add(entry)
@@ -191,7 +192,8 @@ private[deequ] object JdbcAnalyzerContextSerializer extends JsonSerializer[JdbcA
   }
 }
 
-private[deequ] object JdbcAnalyzerContextDeserializer extends JsonDeserializer[JdbcAnalyzerContext] {
+private[deequ] object JdbcAnalyzerContextDeserializer
+  extends JsonDeserializer[JdbcAnalyzerContext] {
 
   override def deserialize(jsonElement: JsonElement, t: Type,
     context: JsonDeserializationContext): JdbcAnalyzerContext = {
@@ -204,7 +206,8 @@ private[deequ] object JdbcAnalyzerContextDeserializer extends JsonDeserializer[J
         val serializedAnalyzer = entry.getAsJsonObject.get(ANALYZER_FIELD)
 
         val analyzer = context.deserialize(serializedAnalyzer,
-          classOf[JdbcAnalyzer[State[_], Metric[_]]]).asInstanceOf[JdbcAnalyzer[State[_], Metric[_]]]
+          classOf[JdbcAnalyzer[State[_], Metric[_]]])
+          .asInstanceOf[JdbcAnalyzer[State[_], Metric[_]]]
 
         val metric = context.deserialize(entry.getAsJsonObject.get(METRIC_FIELD),
           classOf[Metric[_]]).asInstanceOf[Metric[_]]

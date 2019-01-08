@@ -38,7 +38,8 @@ trait JdbcMetricsRepositoryMultipleResultsLoader {
     *
     * @param analyzers A sequence of analyers who's resulting metrics you want to load
     */
-  def forAnalyzers(analyzers: Seq[JdbcAnalyzer[_, Metric[_]]]): JdbcMetricsRepositoryMultipleResultsLoader
+  def forAnalyzers(analyzers: Seq[JdbcAnalyzer[_, Metric[_]]]):
+  JdbcMetricsRepositoryMultipleResultsLoader
 
   /**
     * Convenience method to only look at AnalysisResults with a history key with a greater value
