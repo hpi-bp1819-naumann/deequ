@@ -395,6 +395,12 @@ private[deequ] object JdbcAnalyzers {
     if (columns.size == 1) Entity.Column else Entity.Mutlicolumn
   }
 
+  def conditionalSelection(column: String, where: Option[String]): String = {
+    where
+      .map { condition => s"CASE WHEN ($condition) THEN $column ELSE NULL END" }
+      .getOrElse(column)
+  }
+
   def conditionalCount(where: Option[String]): String = {
     where
       .map { filter => s"""SUM(CASE WHEN ($filter) THEN 1 ELSE 0 END)""" }
