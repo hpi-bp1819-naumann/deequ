@@ -14,8 +14,9 @@
  *
  */
 
-package com.amazon.deequ.analyzers.jdbc
+package com.amazon.deequ.analyzers
 
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, JdbcStateLoader, JdbcStatePersister, Table}
 import com.amazon.deequ.analyzers.runners.{JdbcAnalysisRunner, JdbcAnalyzerContext}
 import com.amazon.deequ.metrics.Metric
 import org.apache.spark.storage.StorageLevel
@@ -50,13 +51,13 @@ case class JdbcAnalysis(analyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty) 
     */
   @deprecated("Use the AnalysisRunner instead (the onData method there)", "24-09-2019")
   def run(
-      table: Table,
+      data: Table,
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None,
       storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK)
     : JdbcAnalyzerContext = {
 
-    JdbcAnalysisRunner.doAnalysisRun(table, analyzers, aggregateWith = aggregateWith,
+    JdbcAnalysisRunner.doAnalysisRun(data, analyzers, aggregateWith = aggregateWith,
       saveStatesWith = saveStatesWith)
   }
 }

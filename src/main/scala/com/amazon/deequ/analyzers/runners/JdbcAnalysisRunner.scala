@@ -18,7 +18,7 @@ package com.amazon.deequ.analyzers.runners
 
 import java.sql.{Connection, ResultSet}
 
-import com.amazon.deequ.analyzers.State
+import com.amazon.deequ.analyzers.{JdbcAnalysis, State}
 import com.amazon.deequ.analyzers.jdbc._
 import com.amazon.deequ.metrics.{DoubleMetric, Metric}
 import com.amazon.deequ.repository.{JdbcMetricsRepository, ResultKey}

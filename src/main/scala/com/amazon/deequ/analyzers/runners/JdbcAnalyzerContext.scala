@@ -43,8 +43,8 @@ case class JdbcAnalyzerContext(metricMap: Map[JdbcAnalyzer[_, Metric[_]], Metric
 object JdbcAnalyzerContext {
 
   def empty: JdbcAnalyzerContext = JdbcAnalyzerContext(Map.empty)
-/*
-  def successMetricsAsDataFrame(
+
+ /* def successMetricsAsDataFrame(
                                  connection: Connection,
                                  analyzerContext: JdbcAnalyzerContext,
                                  forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty)

@@ -19,21 +19,21 @@ package com.amazon.deequ
 import com.amazon.deequ.analyzers._
 import com.amazon.deequ.analyzers.applicability.{AnalyzersApplicability, Applicability, CheckApplicability}
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, JdbcStateLoader, JdbcStatePersister, Table}
-import com.amazon.deequ.analyzers.runners.{AnalysisRunner, AnalysisRunnerRepositoryOptions, AnalyzerContext, JdbcAnalysisRunner}
+import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.checks.{Check, JdbcCheck, JdbcCheckStatus}
 import com.amazon.deequ.io.DfsUtils
 import com.amazon.deequ.metrics.Metric
-import com.amazon.deequ.repository.{MetricsRepository, ResultKey}
+import com.amazon.deequ.repository.{JdbcMetricsRepository, MetricsRepository, ResultKey}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 
-private[deequ] case class VerificationMetricsRepositoryOptions(
-      metricsRepository: Option[MetricsRepository] = None,
+private[deequ] case class JdbcVerificationMetricsRepositoryOptions(
+      metricsRepository: Option[JdbcMetricsRepository] = None,
       reuseExistingResultsForKey: Option[ResultKey] = None,
       failIfResultsForReusingMissing: Boolean = false,
       saveOrAppendResultsWithKey: Option[ResultKey] = None)
 
-private[deequ] case class VerificationFileOutputOptions(
+private[deequ] case class JdbcVerificationFileOutputOptions(
       sparkSession: Option[SparkSession] = None,
       saveCheckResultsJsonToPath: Option[String] = None,
       saveSuccessMetricsJsonToPath: Option[String] = None,
@@ -72,10 +72,10 @@ class JdbcVerificationSuite {
       requiredAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]],
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None,
-      metricsRepositoryOptions: VerificationMetricsRepositoryOptions =
-        VerificationMetricsRepositoryOptions(),
-      fileOutputOptions: VerificationFileOutputOptions =
-        VerificationFileOutputOptions())
+      metricsRepositoryOptions: JdbcVerificationMetricsRepositoryOptions =
+        JdbcVerificationMetricsRepositoryOptions(),
+      fileOutputOptions: JdbcVerificationFileOutputOptions =
+        JdbcVerificationFileOutputOptions())
     : JdbcVerificationResult = {
 
     val analyzers = requiredAnalyzers ++ checks.flatMap { _.requiredAnalyzers() }
@@ -85,7 +85,7 @@ class JdbcVerificationSuite {
       analyzers,
       aggregateWith,
       saveStatesWith,
-      metricsRepositoryOptions = AnalysisRunnerRepositoryOptions(
+      metricsRepositoryOptions = JdbcAnalysisRunnerRepositoryOptions(
         metricsRepositoryOptions.metricsRepository,
         metricsRepositoryOptions.reuseExistingResultsForKey,
         metricsRepositoryOptions.failIfResultsForReusingMissing,
@@ -93,7 +93,7 @@ class JdbcVerificationSuite {
 
     val verificationResult = evaluate(checks, analysisResults)
 
-    val analyzerContext = AnalyzerContext(verificationResult.metrics)
+    val analyzerContext = JdbcAnalyzerContext(verificationResult.metrics)
 
     saveOrAppendResultsIfNecessary(
       analyzerContext,
@@ -106,7 +106,7 @@ class JdbcVerificationSuite {
   }
 
   private[this] def saveJsonOutputsToFilesystemIfNecessary(
-    fileOutputOptions: VerificationFileOutputOptions,
+    fileOutputOptions: JdbcVerificationFileOutputOptions,
     verificationResult: JdbcVerificationResult)
   : Unit = {
 
@@ -134,8 +134,8 @@ class JdbcVerificationSuite {
   }
 
   private[this] def saveOrAppendResultsIfNecessary(
-      resultingAnalyzerContext: AnalyzerContext,
-      metricsRepository: Option[MetricsRepository],
+      resultingAnalyzerContext: JdbcAnalyzerContext,
+      metricsRepository: Option[JdbcMetricsRepository],
       saveOrAppendResultsWithKey: Option[ResultKey])
     : Unit = {
 
@@ -146,7 +146,7 @@ class JdbcVerificationSuite {
 
         // AnalyzerContext entries on the right side of ++ will overwrite the ones on the left
         // if there are two different metric results for the same analyzer
-        val valueToSave = currentValueForKey.getOrElse(AnalyzerContext.empty) ++
+        val valueToSave = currentValueForKey.getOrElse(JdbcAnalyzerContext.empty) ++
           resultingAnalyzerContext
 
         repository.save(saveOrAppendResultsWithKey.get, valueToSave)
@@ -168,18 +168,18 @@ class JdbcVerificationSuite {
     *         constraints and all metrics produced
     */
   def runOnAggregatedStates(
-      schema: StructType,
+      schema: Table,
       checks: Seq[JdbcCheck],
-      stateLoaders: Seq[StateLoader],
-      requiredAnalysis: Analysis = Analysis(),
-      saveStatesWith: Option[StatePersister] = None,
-      metricsRepository: Option[MetricsRepository] = None,
+      stateLoaders: Seq[JdbcStateLoader],
+      requiredAnalysis: JdbcAnalysis = JdbcAnalysis(),
+      saveStatesWith: Option[JdbcStatePersister] = None,
+      metricsRepository: Option[JdbcMetricsRepository] = None,
       saveOrAppendResultsWithKey: Option[ResultKey] = None)
     : JdbcVerificationResult = {
 
     val analysis = requiredAnalysis.addAnalyzers(checks.flatMap { _.requiredAnalyzers() })
 
-    val analysisResults = AnalysisRunner.runOnAggregatedStates(
+    val analysisResults = JdbcAnalysisRunner.runOnAggregatedStates(
       schema,
       analysis,
       stateLoaders,
@@ -224,7 +224,7 @@ class JdbcVerificationSuite {
 
   private[this] def evaluate(
       checks: Seq[JdbcCheck],
-      analysisContext: AnalyzerContext)
+      analysisContext: JdbcAnalyzerContext)
     : JdbcVerificationResult = {
 
     val checkResults = checks

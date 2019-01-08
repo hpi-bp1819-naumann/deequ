@@ -16,12 +16,11 @@
 
 package com.amazon.deequ
 
-import com.amazon.deequ.analyzers.Analyzer
-import com.amazon.deequ.analyzers.runners.AnalyzerContext
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
+import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
 import com.amazon.deequ.checks._
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.repository.SimpleResultSerde
-import org.apache.spark.sql.{DataFrame, SparkSession}
 
 /**
   * The result returned from the VerificationSuite
@@ -33,29 +32,31 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 case class JdbcVerificationResult(
                                status: JdbcCheckStatus.Value,
                                checkResults: Map[JdbcCheck, JdbcCheckResult],
-                               metrics: Map[Analyzer[_, Metric[_]], Metric[_]])
+                               metrics: Map[JdbcAnalyzer[_, Metric[_]], Metric[_]])
 
 object JdbcVerificationResult {
 
+  /*
   def successMetricsAsDataFrame(
                                  sparkSession: SparkSession,
                                  verificationResult: JdbcVerificationResult,
                                  forAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty)
   : DataFrame = {
 
-    val metricsAsAnalyzerContext = AnalyzerContext(verificationResult.metrics)
+    val metricsAsAnalyzerContext = JdbcAnalyzerContext(verificationResult.metrics)
 
-    AnalyzerContext.successMetricsAsDataFrame(sparkSession, metricsAsAnalyzerContext, forAnalyzers)
-  }
+    JdbcAnalyzerContext.successMetricsAsDataFrame(sparkSession, metricsAsAnalyzerContext, forAnalyzers)
+  }*/
 
   def successMetricsAsJson(verificationResult: JdbcVerificationResult,
-                           forAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty): String = {
+                           forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty): String = {
 
-    val metricsAsAnalyzerContext = AnalyzerContext(verificationResult.metrics)
+    val metricsAsAnalyzerContext = JdbcAnalyzerContext(verificationResult.metrics)
 
-    AnalyzerContext.successMetricsAsJson(metricsAsAnalyzerContext, forAnalyzers)
+    JdbcAnalyzerContext.successMetricsAsJson(metricsAsAnalyzerContext, forAnalyzers)
   }
 
+  /*
   def checkResultsAsDataFrame(
                                sparkSession: SparkSession,
                                verificationResult: JdbcVerificationResult,
@@ -68,7 +69,7 @@ object JdbcVerificationResult {
 
     simplifiedCheckResults.toDF("check", "check_level", "check_status", "constraint",
       "constraint_status", "constraint_message")
-  }
+  }*/
 
   def checkResultsAsJson(verificationResult: JdbcVerificationResult,
                          forChecks: Seq[Check] = Seq.empty): String = {

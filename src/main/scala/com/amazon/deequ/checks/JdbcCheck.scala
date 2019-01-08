@@ -16,16 +16,14 @@
 
 package com.amazon.deequ.checks
 
-import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
-import com.amazon.deequ.anomalydetection.{AnomalyDetectionStrategy, AnomalyDetector, DataPoint}
-import com.amazon.deequ.analyzers.runners.AnalyzerContext
-import com.amazon.deequ.analyzers.{Analyzer, Histogram, Patterns, State}
-import com.amazon.deequ.constraints.Constraint._
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, JdbcHistogram}
+import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
+import com.amazon.deequ.analyzers.{Patterns, State}
+import com.amazon.deequ.anomalydetection.{AnomalyDetectionStrategy, AnomalyDetector, DataPoint, HistoryUtils}
+import com.amazon.deequ.constraints.JdbcConstraint._
 import com.amazon.deequ.constraints._
 import com.amazon.deequ.metrics.{Distribution, Metric}
-import com.amazon.deequ.repository.MetricsRepository
-import org.apache.spark.sql.expressions.UserDefinedFunction
-import com.amazon.deequ.anomalydetection.HistoryUtils
+import com.amazon.deequ.repository.JdbcMetricsRepository
 
 import scala.util.matching.Regex
 
@@ -41,7 +39,7 @@ object JdbcCheckStatus extends Enumeration {
 case class JdbcCheckResult(
     check: JdbcCheck,
     status: JdbcCheckStatus.Value,
-    constraintResults: Seq[ConstraintResult])
+    constraintResults: Seq[JdbcConstraintResult])
 
 
 /**
@@ -61,7 +59,7 @@ case class JdbcCheckResult(
 case class JdbcCheck(
   level: CheckLevel.Value,
   description: String,
-  private[deequ] val constraints: Seq[Constraint] = Seq.empty) {
+  private[deequ] val constraints: Seq[JdbcConstraint] = Seq.empty) {
 
 
   /**
@@ -70,18 +68,18 @@ case class JdbcCheck(
     * @param constraint New constraint to be added
     * @return
     */
-  def addConstraint(constraint: Constraint): Check = {
-    Check(level, description, constraints :+ constraint)
+  def addConstraint(constraint: JdbcConstraint): JdbcCheck = {
+    JdbcCheck(level, description, constraints :+ constraint)
   }
 
   /** Adds a constraint that can subsequently be replaced with a filtered version */
   private[this] def addFilterableConstraint(
-      creationFunc: Option[String] => Constraint)
-    : CheckWithLastConstraintFilterable = {
+      creationFunc: Option[String] => JdbcConstraint)
+    : JdbcCheckWithLastConstraintFilterable = {
 
     val constraintWithoutFiltering = creationFunc(None)
 
-    CheckWithLastConstraintFilterable(level, description,
+    JdbcCheckWithLastConstraintFilterable(level, description,
       constraints :+ constraintWithoutFiltering, creationFunc)
   }
 
@@ -97,9 +95,9 @@ case class JdbcCheck(
     * @return
     */
   def hasSize(assertion: Long => Boolean, hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
-    addFilterableConstraint { filter => Constraint.sizeConstraint(assertion, filter, hint) }
+    addFilterableConstraint { filter => sizeConstraint(assertion, filter, hint) }
   }
 
   /**
@@ -109,8 +107,8 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def isComplete(column: String, hint: Option[String] = None): CheckWithLastConstraintFilterable = {
-    addFilterableConstraint { filter => completenessConstraint(column, Check.IsOne, filter, hint) }
+  def isComplete(column: String, hint: Option[String] = None): JdbcCheckWithLastConstraintFilterable = {
+    addFilterableConstraint { filter => completenessConstraint(column, JdbcCheck.IsOne, filter, hint) }
   }
 
   /**
@@ -127,7 +125,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
     addFilterableConstraint { filter => completenessConstraint(column, assertion, filter, hint) }
   }
 
@@ -138,8 +136,8 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def isUnique(column: String, hint: Option[String] = None): Check = {
-    addConstraint(uniquenessConstraint(Seq(column), Check.IsOne, hint))
+  def isUnique(column: String, hint: Option[String] = None): JdbcCheck = {
+    addConstraint(uniquenessConstraint(Seq(column), JdbcCheck.IsOne, hint))
   }
 
   /**
@@ -150,8 +148,8 @@ case class JdbcCheck(
     * @param column Columns to run the assertion on
     * @return
     */
-  def isPrimaryKey(column: String, columns: String*): Check = {
-    addConstraint(uniquenessConstraint(column :: columns.toList, Check.IsOne))
+  def isPrimaryKey(column: String, columns: String*): JdbcCheck = {
+    addConstraint(uniquenessConstraint(column :: columns.toList, JdbcCheck.IsOne))
   }
 
   /**
@@ -163,8 +161,8 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def isPrimaryKey(column: String, hint: Option[String], columns: String*): Check = {
-    addConstraint(uniquenessConstraint(column :: columns.toList, Check.IsOne, hint))
+  def isPrimaryKey(column: String, hint: Option[String], columns: String*): JdbcCheck = {
+    addConstraint(uniquenessConstraint(column :: columns.toList, JdbcCheck.IsOne, hint))
   }
 
   /**
@@ -175,7 +173,7 @@ case class JdbcCheck(
     *                  Refers to the fraction of unique values
     * @return
     */
-  def hasUniqueness(columns: Seq[String], assertion: Double => Boolean): Check = {
+  def hasUniqueness(columns: Seq[String], assertion: Double => Boolean): JdbcCheck = {
     addConstraint(uniquenessConstraint(columns, assertion))
   }
 
@@ -192,7 +190,7 @@ case class JdbcCheck(
       columns: Seq[String],
       assertion: Double => Boolean,
       hint: Option[String])
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(uniquenessConstraint(columns, assertion, hint))
   }
@@ -205,7 +203,7 @@ case class JdbcCheck(
     *                  Refers to the fraction of unique values.
     * @return
     */
-  def hasUniqueness(column: String, assertion: Double => Boolean): Check = {
+  def hasUniqueness(column: String, assertion: Double => Boolean): JdbcCheck = {
     hasUniqueness(Seq(column), assertion)
   }
 
@@ -218,7 +216,7 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def hasUniqueness(column: String, assertion: Double => Boolean, hint: Option[String]): Check = {
+  def hasUniqueness(column: String, assertion: Double => Boolean, hint: Option[String]): JdbcCheck = {
     hasUniqueness(Seq(column), assertion, hint)
   }
 
@@ -234,7 +232,7 @@ case class JdbcCheck(
   def hasDistinctness(
       columns: Seq[String], assertion: Double => Boolean,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(distinctnessConstraint(columns, assertion, hint))
   }
@@ -252,7 +250,7 @@ case class JdbcCheck(
       columns: Seq[String],
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(uniqueValueRatioConstraint(columns, assertion, hint))
   }
@@ -271,10 +269,10 @@ case class JdbcCheck(
   def hasNumberOfDistinctValues(
       column: String,
       assertion: Long => Boolean,
-      binningUdf: Option[UserDefinedFunction] = None,
-      maxBins: Integer = Histogram.MaximumAllowedDetailBins,
+      binningUdf: Option[Any => Any] = None,
+      maxBins: Integer = JdbcHistogram.MaximumAllowedDetailBins,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(histogramBinConstraint(column, assertion, binningUdf, maxBins, hint))
   }
@@ -297,10 +295,10 @@ case class JdbcCheck(
   def hasHistogramValues(
       column: String,
       assertion: Distribution => Boolean,
-      binningUdf: Option[UserDefinedFunction] = None,
-      maxBins: Integer = Histogram.MaximumAllowedDetailBins,
+      binningUdf: Option[Any => Any] = None,
+      maxBins: Integer = JdbcHistogram.MaximumAllowedDetailBins,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(histogramConstraint(column, assertion, binningUdf, maxBins, hint))
   }
@@ -322,16 +320,16 @@ case class JdbcCheck(
     * @return
     */
   private[deequ] def isNewestPointNonAnomalous[S <: State[S]](
-      metricsRepository: MetricsRepository,
+      metricsRepository: JdbcMetricsRepository,
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
-      analyzer: Analyzer[S, Metric[Double]],
+      analyzer: JdbcAnalyzer[S, Metric[Double]],
       withTagValues: Map[String, String],
       afterDate: Option[Long],
       beforeDate: Option[Long],
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
-    val anomalyAssertionFunction = Check.isNewestPointNonAnomalous(
+    val anomalyAssertionFunction = JdbcCheck.isNewestPointNonAnomalous(
       metricsRepository,
       anomalyDetectionStrategy,
       analyzer,
@@ -356,49 +354,10 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addConstraint(entropyConstraint(column, assertion, hint))
   }
-
-  /**
-    * Creates a constraint that asserts on a mutual information between two columns.
-    *
-    * @param columnA   First column for mutual information calculation
-    * @param columnB   Second column for mutual information calculation
-    * @param assertion Function that receives a double input parameter and returns a boolean
-    * @param hint      A hint to provide additional context why a constraint could have failed
-    * @return
-    */
-  def hasMutualInformation(
-      columnA: String,
-      columnB: String,
-      assertion: Double => Boolean,
-      hint: Option[String] = None)
-    : Check = {
-
-    addConstraint(mutualInformationConstraint(columnA, columnB, assertion, hint))
-  }
-
-  /**
-    * Creates a constraint that asserts on an approximated quantile
-    *
-    * @param column Column to run the assertion on
-    * @param quantile Which quantile to assert on
-    * @param assertion Function that receives a double input parameter (the computed quantile)
-    *                  and returns a boolean
-    * @param hint A hint to provide additional context why a constraint could have failed
-    * @return
-    */
-  def hasApproxQuantile(column: String,
-      quantile: Double,
-      assertion: Double => Boolean,
-      hint: Option[String] = None)
-    : Check = {
-
-    addConstraint(approxQuantileConstraint(column, quantile, assertion, hint))
-  }
-
 
   /**
     * Creates a constraint that asserts on the minimum of the column
@@ -412,7 +371,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter => minConstraint(column, assertion, filter, hint) }
   }
@@ -429,7 +388,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter => maxConstraint(column, assertion, filter, hint) }
   }
@@ -446,7 +405,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addFilterableConstraint { filter => meanConstraint(column, assertion, filter, hint) }
   }
@@ -463,7 +422,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter => sumConstraint(column, assertion, filter, hint) }
   }
@@ -480,28 +439,10 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter =>
       standardDeviationConstraint(column, assertion, filter, hint) }
-  }
-
-  /**
-    * Creates a constraint that asserts on the approximate count distinct of the given column
-    *
-    * @param column Column to run the assertion on
-    * @param assertion Function that receives a double input parameter and returns a boolean
-    * @param hint A hint to provide additional context why a constraint could have failed
-    * @return
-    */
-  def hasApproxCountDistinct(
-      column: String,
-      assertion: Double => Boolean,
-      hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
-
-    addFilterableConstraint { filter =>
-      approxCountDistinctConstraint(column, assertion, filter, hint) }
   }
 
   /**
@@ -518,7 +459,7 @@ case class JdbcCheck(
       columnB: String,
       assertion: Double => Boolean,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter =>
       correlationConstraint(columnA, columnB, assertion, filter, hint) }
@@ -542,7 +483,7 @@ case class JdbcCheck(
       constraintName: String,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     addFilterableConstraint { filter =>
       complianceConstraint(constraintName, columnCondition, assertion, filter, hint)
@@ -565,10 +506,10 @@ case class JdbcCheck(
       assertion: Double => Boolean = Check.IsOne,
       name: Option[String] = None,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     addFilterableConstraint { filter =>
-      Constraint.patternMatchConstraint(column, pattern, assertion, filter, name, hint)
+      JdbcConstraint.patternMatchConstraint(column, pattern, assertion, filter, name, hint)
     }
   }
 
@@ -584,7 +525,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     hasPattern(column, Patterns.CREDITCARD, assertion, Some(s"containsCreditCardNumber($column)"),
       hint)
@@ -602,7 +543,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     hasPattern(column, Patterns.EMAIL, assertion, Some(s"containsEmail($column)"), hint)
   }
@@ -619,7 +560,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     hasPattern(column, Patterns.URL, assertion, Some(s"containsURL($column)"), hint)
   }
@@ -637,7 +578,7 @@ case class JdbcCheck(
       column: String,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
     hasPattern(column, Patterns.SOCIAL_SECURITY_NUMBER_US, assertion,
       Some(s"containsSocialSecurityNumber($column)"), hint)
@@ -657,9 +598,9 @@ case class JdbcCheck(
       dataType: ConstrainableDataTypes.Value,
       assertion: Double => Boolean = Check.IsOne,
       hint: Option[String] = None)
-    : Check = {
+    : JdbcCheck = {
 
-    addConstraint(Constraint.dataTypeConstraint(column, dataType, assertion, hint))
+    addConstraint(JdbcConstraint.dataTypeConstraint(column, dataType, assertion, hint))
   }
 
   /**
@@ -672,7 +613,7 @@ case class JdbcCheck(
   def isNonNegative(
       column: String,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     // coalescing column to not count NULL values as non-compliant
     satisfies(s"COALESCE($column, 0.0) >= 0", s"$column is non-negative", hint = hint)
@@ -684,7 +625,7 @@ case class JdbcCheck(
     * @param column Column to run the assertion on
     * @return
     */
-  def isPositive(column: String): CheckWithLastConstraintFilterable = {
+  def isPositive(column: String): JdbcCheckWithLastConstraintFilterable = {
     // coalescing column to not count NULL values as non-compliant
     satisfies(s"COALESCE($column, 1.0) > 0", s"$column is positive")
   }
@@ -702,7 +643,7 @@ case class JdbcCheck(
       columnA: String,
       columnB: String,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     satisfies(s"$columnA < $columnB", s"$columnA is less than $columnB",
       hint = hint)
@@ -720,7 +661,7 @@ case class JdbcCheck(
       columnA: String,
       columnB: String,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     satisfies(s"$columnA <= $columnB", s"$columnA is less than or equal to $columnB",
       hint = hint)
@@ -738,7 +679,7 @@ case class JdbcCheck(
       columnA: String,
       columnB: String,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     satisfies(s"$columnA > $columnB", s"$columnA is greater than $columnB",
       hint = hint)
@@ -757,7 +698,7 @@ case class JdbcCheck(
       columnA: String,
       columnB: String,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     satisfies(s"$columnA >= $columnB", s"$columnA is greater than or equal to $columnB",
       hint = hint)
@@ -774,7 +715,7 @@ case class JdbcCheck(
   def isContainedIn(
       column: String,
       allowedValues: Array[String])
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
 
     isContainedIn(column, allowedValues, Check.IsOne, None)
@@ -793,7 +734,7 @@ case class JdbcCheck(
       column: String,
       allowedValues: Array[String],
       hint: Option[String])
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     isContainedIn(column, allowedValues, Check.IsOne, hint)
   }
@@ -811,7 +752,7 @@ case class JdbcCheck(
       column: String,
       allowedValues: Array[String],
       assertion: Double => Boolean)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
 
     isContainedIn(column, allowedValues, assertion, None)
@@ -832,7 +773,7 @@ case class JdbcCheck(
       allowedValues: Array[String],
       assertion: Double => Boolean,
       hint: Option[String])
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
 
     val valueList = allowedValues
@@ -861,7 +802,7 @@ case class JdbcCheck(
       includeLowerBound: Boolean = true,
       includeUpperBound: Boolean = true,
       hint: Option[String] = None)
-    : CheckWithLastConstraintFilterable = {
+    : JdbcCheckWithLastConstraintFilterable = {
 
     val leftOperand = if (includeLowerBound) ">=" else ">"
     val rightOperand = if (includeLowerBound) "<=" else "<"
@@ -877,10 +818,10 @@ case class JdbcCheck(
     * @param context result of the metrics computation
     * @return
     */
-  def evaluate(context: AnalyzerContext): JdbcCheckResult = {
+  def evaluate(context: JdbcAnalyzerContext): JdbcCheckResult = {
 
     val constraintResults = constraints.map { _.evaluate(context.metricMap) }
-    val anyFailures = constraintResults.exists { _.status == ConstraintStatus.Failure }
+    val anyFailures = constraintResults.exists { _.status == JdbcConstraintStatus.Failure }
 
     val checkStatus = (anyFailures, level) match {
       case (true, JdbcCheckLevel.Error) => JdbcCheckStatus.Error
@@ -894,10 +835,10 @@ case class JdbcCheck(
   def requiredAnalyzers(): Set[JdbcAnalyzer[_, Metric[_]]] = {
     constraints
       .map {
-        case nc: ConstraintDecorator => nc.inner
-        case c: Constraint => c
+        case nc: JdbcConstraintDecorator => nc.inner
+        case c: JdbcConstraint => c
       }
-      .collect { case constraint: AnalysisBasedConstraint[_, _, _] => constraint.analyzer }
+      .collect { case constraint: JdbcAnalysisBasedConstraint[_, _, _] => constraint.analyzer }
       .map { _.asInstanceOf[JdbcAnalyzer[_, Metric[_]]] }
       .toSet
   }
@@ -926,9 +867,9 @@ object JdbcCheck {
     * @return
     */
   private[deequ] def isNewestPointNonAnomalous[S <: State[S]](
-      metricsRepository: MetricsRepository,
+      metricsRepository: JdbcMetricsRepository,
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
-      analyzer: Analyzer[S, Metric[Double]],
+      analyzer: JdbcAnalyzer[S, Metric[Double]],
       withTagValues: Map[String, String],
       afterDate: Option[Long],
       beforeDate: Option[Long])(
