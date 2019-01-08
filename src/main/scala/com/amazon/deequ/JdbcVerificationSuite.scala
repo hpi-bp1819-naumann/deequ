@@ -23,7 +23,7 @@ import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.checks.{Check, JdbcCheck, JdbcCheckStatus}
 import com.amazon.deequ.io.DfsUtils
 import com.amazon.deequ.metrics.Metric
-import com.amazon.deequ.repository.{JdbcMetricsRepository, MetricsRepository, ResultKey}
+import com.amazon.deequ.repository.{JdbcMetricsRepository, ResultKey}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 
@@ -34,7 +34,6 @@ private[deequ] case class JdbcVerificationMetricsRepositoryOptions(
       saveOrAppendResultsWithKey: Option[ResultKey] = None)
 
 private[deequ] case class JdbcVerificationFileOutputOptions(
-      sparkSession: Option[SparkSession] = None,
       saveCheckResultsJsonToPath: Option[String] = None,
       saveSuccessMetricsJsonToPath: Option[String] = None,
       overwriteOutputFiles: Boolean = false)
@@ -110,7 +109,7 @@ class JdbcVerificationSuite {
     verificationResult: JdbcVerificationResult)
   : Unit = {
 
-    fileOutputOptions.sparkSession.foreach { session =>
+    /*fileOutputOptions.sparkSession.foreach { session =>
       fileOutputOptions.saveCheckResultsJsonToPath.foreach { profilesOutput =>
 
         DfsUtils.writeToTextFileOnDfs(session, profilesOutput,
@@ -130,7 +129,7 @@ class JdbcVerificationSuite {
             writer.newLine()
           }
         }
-    }
+    }*/
   }
 
   private[this] def saveOrAppendResultsIfNecessary(
@@ -244,23 +243,23 @@ class JdbcVerificationSuite {
 }
 
 /** Convenience functions for using the VerificationSuite */
-object VerificationSuite {
+object JdbcVerificationSuite {
 
-  def apply(): VerificationSuite = {
-    new VerificationSuite()
+  def apply(): JdbcVerificationSuite = {
+    new JdbcVerificationSuite()
   }
 
   def runOnAggregatedStates(
-      schema: StructType,
-      checks: Seq[Check],
-      stateLoaders: Seq[StateLoader],
-      requiredAnalysis: Analysis = Analysis(),
-      saveStatesWith: Option[StatePersister] = None,
-      metricsRepository: Option[MetricsRepository] = None,
+      schema: Table,
+      checks: Seq[JdbcCheck],
+      stateLoaders: Seq[JdbcStateLoader],
+      requiredAnalysis: JdbcAnalysis = JdbcAnalysis(),
+      saveStatesWith: Option[JdbcStatePersister] = None,
+      metricsRepository: Option[JdbcMetricsRepository] = None,
       saveOrAppendResultsWithKey: Option[ResultKey] = None                           )
-    : VerificationResult = {
+    : JdbcVerificationResult = {
 
-    VerificationSuite().runOnAggregatedStates(schema, checks, stateLoaders, requiredAnalysis,
+    JdbcVerificationSuite().runOnAggregatedStates(schema, checks, stateLoaders, requiredAnalysis,
       saveStatesWith, metricsRepository, saveOrAppendResultsWithKey)
   }
 }

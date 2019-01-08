@@ -57,7 +57,7 @@ case class JdbcCheckResult(
   *                        and will return a new object
   */
 case class JdbcCheck(
-  level: CheckLevel.Value,
+  level: JdbcCheckLevel.Value,
   description: String,
   private[deequ] val constraints: Seq[JdbcConstraint] = Seq.empty) {
 
@@ -826,7 +826,7 @@ case class JdbcCheck(
     val checkStatus = (anyFailures, level) match {
       case (true, JdbcCheckLevel.Error) => JdbcCheckStatus.Error
       case (true, JdbcCheckLevel.Warning) => JdbcCheckStatus.Warning
-      case (_, _) => CheckStatus.Success
+      case (_, _) => JdbcCheckStatus.Success
     }
 
     JdbcCheckResult(this, checkStatus, constraintResults)

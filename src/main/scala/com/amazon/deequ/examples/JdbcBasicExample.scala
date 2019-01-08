@@ -16,13 +16,13 @@
 
 package com.amazon.deequ.examples
 
-import ExampleUtils.withJdbc
-import com.amazon.deequ.VerificationSuite
-import com.amazon.deequ.checks.{Check, CheckLevel}
-import com.amazon.deequ.checks.CheckStatus._
-import com.amazon.deequ.constraints.ConstraintStatus
+import com.amazon.deequ.JdbcVerificationSuite
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
 import com.amazon.deequ.analyzers.runners.JdbcAnalysisRunner
+import com.amazon.deequ.checks.CheckStatus._
+import com.amazon.deequ.checks.{JdbcCheck, JdbcCheckLevel}
+import com.amazon.deequ.constraints.{ConstraintStatus, JdbcConstraintStatus}
+import com.amazon.deequ.examples.ExampleUtils.withJdbc
 import com.amazon.deequ.metrics.Metric
 
 private[examples] object JdbcBasicExample extends App {
@@ -31,10 +31,10 @@ private[examples] object JdbcBasicExample extends App {
 
     val data = Table("example_table", connection)
 
-    val verificationResult = VerificationSuite()
+    val verificationResult = JdbcVerificationSuite()
       .onData(data)
       .addCheck(
-        Check(CheckLevel.Error, "integrity checks")
+        JdbcCheck(JdbcCheckLevel.Error, "integrity checks")
           // we expect 5 records
           .hasSize(_ == 5)
           // 'id' should never be NULL
@@ -48,11 +48,9 @@ private[examples] object JdbcBasicExample extends App {
           // 'numViews' should not contain negative values
           .isNonNegative("numViews"))
       .addCheck(
-        Check(CheckLevel.Warning, "distribution checks")
+        JdbcCheck(JdbcCheckLevel.Warning, "distribution checks")
           // at least half of the 'description's should contain a url
-          .containsURL("description", _ >= 0.5)
-          // half of the items should have less than 10 'numViews'
-          .hasApproxQuantile("numViews", 0.5, _ <= 10))
+          .containsURL("description", _ >= 0.5))
       .run()
 
     if (verificationResult.status == Success) {
@@ -64,7 +62,7 @@ private[examples] object JdbcBasicExample extends App {
         .flatMap { case (_, checkResult) => checkResult.constraintResults }
 
       resultsForAllConstraints
-        .filter { _.status != ConstraintStatus.Success }
+        .filter { _.status != JdbcConstraintStatus.Success }
         .foreach { result =>
           println(s"${result.constraint} failed: ${result.message.get}")
         }

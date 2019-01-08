@@ -17,9 +17,9 @@
 package com.amazon.deequ
 
 import com.amazon.deequ.analyzers.{Analyzer, State}
-import com.amazon.deequ.analyzers.jdbc.Table
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
 import com.amazon.deequ.anomalydetection.AnomalyDetectionStrategy
-import com.amazon.deequ.checks.{Check, CheckLevel}
+import com.amazon.deequ.checks.{Check, CheckLevel, JdbcCheck, JdbcCheckLevel}
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.repository._
 import org.apache.spark.sql.SparkSession
@@ -27,22 +27,21 @@ import org.apache.spark.sql.SparkSession
 /** A class to build a VerificationRun using a fluent API */
 class JdbcVerificationRunBuilder(val data: Table) {
 
-  protected var requiredAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty
+  protected var requiredAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty
 
-  protected var checks: Seq[Check] = Seq.empty
+  protected var checks: Seq[JdbcCheck] = Seq.empty
 
-  protected var metricsRepository: Option[MetricsRepository] = None
+  protected var metricsRepository: Option[JdbcMetricsRepository] = None
 
   protected var reuseExistingResultsKey: Option[ResultKey] = None
   protected var failIfResultsForReusingMissing: Boolean = false
   protected var saveOrAppendResultsKey: Option[ResultKey] = None
 
-  protected var sparkSession: Option[SparkSession] = None
   protected var saveCheckResultsJsonPath: Option[String] = None
   protected var saveSuccessMetricsJsonPath: Option[String] = None
   protected var overwriteOutputFiles: Boolean = false
 
-  protected def this(verificationRunBuilder: VerificationRunBuilder) {
+  protected def this(verificationRunBuilder: JdbcVerificationRunBuilder) {
 
     this(verificationRunBuilder.data)
 
@@ -56,7 +55,6 @@ class JdbcVerificationRunBuilder(val data: Table) {
     failIfResultsForReusingMissing = verificationRunBuilder.failIfResultsForReusingMissing
     saveOrAppendResultsKey = verificationRunBuilder.saveOrAppendResultsKey
 
-    sparkSession = verificationRunBuilder.sparkSession
     overwriteOutputFiles = verificationRunBuilder.overwriteOutputFiles
     saveCheckResultsJsonPath = verificationRunBuilder.saveCheckResultsJsonPath
     saveSuccessMetricsJsonPath = verificationRunBuilder.saveSuccessMetricsJsonPath
@@ -67,7 +65,7 @@ class JdbcVerificationRunBuilder(val data: Table) {
     *
     * @param check A check object to be executed during the run
     */
-  def addCheck(check: Check): this.type = {
+  def addCheck(check: JdbcCheck): this.type = {
     checks :+= check
     this
   }
@@ -77,7 +75,7 @@ class JdbcVerificationRunBuilder(val data: Table) {
     *
     * @param checks A sequence of check objects to be executed during the run
     */
-  def addChecks(checks: Seq[Check]): this.type = {
+  def addChecks(checks: Seq[JdbcCheck]): this.type = {
     this.checks ++= checks
     this
   }
@@ -88,7 +86,7 @@ class JdbcVerificationRunBuilder(val data: Table) {
     *
     * @param requiredAnalyzer The analyzer to be used to calculate the metric during the run
     */
-  def addRequiredAnalyzer(requiredAnalyzer: Analyzer[_, Metric[_]]): this.type = {
+  def addRequiredAnalyzer(requiredAnalyzer: JdbcAnalyzer[_, Metric[_]]): this.type = {
     requiredAnalyzers :+= requiredAnalyzer
     this
   }
@@ -99,7 +97,7 @@ class JdbcVerificationRunBuilder(val data: Table) {
     *
     * @param requiredAnalyzers The analyzers to be used to calculate the metrics during the run
     */
-  def addRequiredAnalyzers(requiredAnalyzers: Seq[Analyzer[_, Metric[_]]]): this.type = {
+  def addRequiredAnalyzers(requiredAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]]): this.type = {
     this.requiredAnalyzers ++= requiredAnalyzers
     this
   }
@@ -111,36 +109,22 @@ class JdbcVerificationRunBuilder(val data: Table) {
     * @param metricsRepository A metrics repository to store and load results associated with the
     *                          run
     */
-  def useRepository(metricsRepository: MetricsRepository): VerificationRunBuilderWithRepository = {
+  def useRepository(metricsRepository: JdbcMetricsRepository): JdbcVerificationRunBuilderWithRepository = {
 
-    new VerificationRunBuilderWithRepository(this, Option(metricsRepository))
+    new JdbcVerificationRunBuilderWithRepository(this, Option(metricsRepository))
   }
 
-  /**
-    * Use a sparkSession to conveniently create output files
-    *
-    * @param sparkSession The SparkSession
-    */
-  def useSparkSession(
-      sparkSession: SparkSession)
-    : VerificationRunBuilderWithSparkSession = {
-
-    new VerificationRunBuilderWithSparkSession(this, Option(sparkSession))
-  }
-
-
-  def run(): VerificationResult = {
-    VerificationSuite().doVerificationRun(
+  def run(): JdbcVerificationResult = {
+    JdbcVerificationSuite().doVerificationRun(
       data,
       checks,
       requiredAnalyzers,
-      metricsRepositoryOptions = VerificationMetricsRepositoryOptions(
+      metricsRepositoryOptions = JdbcVerificationMetricsRepositoryOptions(
         metricsRepository,
         reuseExistingResultsKey,
         failIfResultsForReusingMissing,
         saveOrAppendResultsKey),
-      fileOutputOptions = VerificationFileOutputOptions(
-        sparkSession,
+      fileOutputOptions = JdbcVerificationFileOutputOptions(
         saveCheckResultsJsonPath,
         saveSuccessMetricsJsonPath,
         overwriteOutputFiles)
@@ -148,10 +132,10 @@ class JdbcVerificationRunBuilder(val data: Table) {
   }
 }
 
-class VerificationRunBuilderWithRepository(
-    verificationRunBuilder: VerificationRunBuilder,
-    usingMetricsRepository: Option[MetricsRepository])
-  extends VerificationRunBuilder(verificationRunBuilder) {
+class JdbcVerificationRunBuilderWithRepository(
+    verificationRunBuilder: JdbcVerificationRunBuilder,
+    usingMetricsRepository: Option[JdbcMetricsRepository])
+  extends JdbcVerificationRunBuilder(verificationRunBuilder) {
 
   metricsRepository = usingMetricsRepository
 
@@ -193,71 +177,25 @@ class VerificationRunBuilderWithRepository(
     */
   def addAnomalyCheck[S <: State[S]](
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
-      analyzer: Analyzer[S, Metric[Double]],
-      anomalyCheckConfig: Option[AnomalyCheckConfig] = None)
+      analyzer: JdbcAnalyzer[S, Metric[Double]],
+      anomalyCheckConfig: Option[JdbcAnomalyCheckConfig] = None)
     : this.type = {
 
     val anomalyCheckConfigOrDefault = anomalyCheckConfig.getOrElse {
 
       val checkDescription = s"Anomaly check for ${analyzer.toString}"
 
-      AnomalyCheckConfig(CheckLevel.Warning, checkDescription)
+      JdbcAnomalyCheckConfig(JdbcCheckLevel.Warning, checkDescription)
     }
 
-    checks :+= VerificationRunBuilderHelper.getAnomalyCheck(metricsRepository.get,
+    checks :+= JdbcVerificationRunBuilderHelper.getAnomalyCheck(metricsRepository.get,
       anomalyDetectionStrategy, analyzer, anomalyCheckConfigOrDefault)
     this
   }
 }
 
-class VerificationRunBuilderWithSparkSession(
-    verificationRunBuilder: VerificationRunBuilder,
-    usingSparkSession: Option[SparkSession])
-  extends VerificationRunBuilder(verificationRunBuilder) {
-
-  sparkSession = usingSparkSession
-
-  /**
-    * Save the check results json to e.g. S3
-    *
-    * @param path The file path
-    */
-  def saveCheckResultsJsonToPath(
-      path: String)
-    : this.type = {
-
-    saveCheckResultsJsonPath = Option(path)
-    this
-  }
-
-  /**
-    * Save the success metrics json to e.g. S3
-    *
-    * @param path The file path
-    */
-  def saveSuccessMetricsJsonToPath(
-      path: String)
-    : this.type = {
-
-    saveSuccessMetricsJsonPath = Option(path)
-    this
-  }
-
-  /**
-    * Whether previous files with identical names should be overwritten when
-    * saving files to some file system.
-    *
-    * @param overwriteFiles Whether previous files with identical names
-    *                       should be overwritten
-    */
-  def overwritePreviousFiles(overwriteFiles: Boolean): this.type = {
-    overwriteOutputFiles = overwriteOutputFiles
-    this
-  }
-}
-
 /** A class to build an AnomalyCheck  */
-private[this] object VerificationRunBuilderHelper {
+private[this] object JdbcVerificationRunBuilderHelper {
 
   /**
     * Build a check using Anomaly Detection methods
@@ -267,13 +205,13 @@ private[this] object VerificationRunBuilderHelper {
     * @param anomalyCheckConfig Some configuration settings for the Check
     */
   def getAnomalyCheck[S <: State[S]](
-      metricsRepository: MetricsRepository,
+      metricsRepository: JdbcMetricsRepository,
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
-      analyzer: Analyzer[S, Metric[Double]],
-      anomalyCheckConfig: AnomalyCheckConfig)
-    : Check = {
+      analyzer: JdbcAnalyzer[S, Metric[Double]],
+      anomalyCheckConfig: JdbcAnomalyCheckConfig)
+    : JdbcCheck = {
 
-    Check(anomalyCheckConfig.level, anomalyCheckConfig.description)
+    JdbcCheck(anomalyCheckConfig.level, anomalyCheckConfig.description)
       .isNewestPointNonAnomalous(
         metricsRepository,
         anomalyDetectionStrategy,
@@ -300,8 +238,8 @@ private[this] object VerificationRunBuilderHelper {
     *                      Anomaly Detection
   * @return
     */
-case class AnomalyCheckConfig(
-  level: CheckLevel.Value,
+case class JdbcAnomalyCheckConfig(
+  level: JdbcCheckLevel.Value,
   description: String,
   withTagValues: Map[String, String] = Map.empty,
   afterDate: Option[Long] = None,
