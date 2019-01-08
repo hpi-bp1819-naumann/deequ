@@ -148,7 +148,9 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
   override def computeStateFrom(data: Table): Option[S] = {
     val aggregations = aggregationFunctions()
     val result = data.executeAggregations(aggregations)
-    fromAggregationResult(result, 0)
+    val state = fromAggregationResult(result, 0)
+    result.close()
+    state
   }
 
   /** Produces a metric from the aggregation result */
