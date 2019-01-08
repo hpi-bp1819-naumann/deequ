@@ -26,54 +26,20 @@ import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 
 
 case class JdbcMinimum(column: String, where: Option[String] = None)
-  extends JdbcAnalyzer[MinState, DoubleMetric] {
+  extends JdbcStandardScanShareableAnalyzer[MinState]("Minimum", column) {
 
-  override def preconditions: Seq[Table => Unit] = {
+  override def aggregationFunctions(): Seq[String] = {
+    s"MIN(${conditionalSelection(column, where)})" :: Nil
+  }
+
+  override def fromAggregationResult(result: ResultSet, offset: Int): Option[MinState] = {
+
+    ifNoNullsIn(result, offset) { _ =>
+      MinState(result.getDouble(offset))
+    }
+  }
+
+  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
     hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
-  }
-
-  override def computeStateFrom(table: Table): Option[MinState] = {
-
-    val connection = table.jdbcConnection
-
-    val query =
-      s"""
-         |SELECT
-         | MIN($column) AS col_min
-         |FROM
-         | ${table.name}
-         |WHERE
-         | ${where.getOrElse("TRUE=TRUE")}
-      """.stripMargin
-
-    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY)
-
-    val result = statement.executeQuery()
-
-    if (result.next()) {
-      val col_min = result.getDouble("col_min")
-
-      if (!result.wasNull()) {
-        result.close()
-        return Some(MinState(col_min))
-      }
-    }
-    result.close()
-    None
-  }
-
-  override def computeMetricFrom(state: Option[MinState]): DoubleMetric = {
-    state match {
-      case Some(theState) =>
-        metricFromValue(theState.metricValue(), "Minimum", column, Entity.Column)
-      case _ =>
-        toFailureMetric(new EmptyStateException(
-          s"Empty state for analyzer JdbcMinimum, all input values were NULL."))
-    }
-  }
-
-  override private[deequ] def toFailureMetric(failure: Exception) = {
-    metricFromFailure(failure, "Minimum", column, Entity.Column)
   }
 }

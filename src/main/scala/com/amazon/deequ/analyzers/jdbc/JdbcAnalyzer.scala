@@ -148,7 +148,7 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
   override def computeStateFrom(data: Table): Option[S] = {
     val aggregations = aggregationFunctions()
     val result = data.executeAggregations(aggregations)
-    val state = fromAggregationResult(result, 0)
+    val state = fromAggregationResult(result, 1)
     result.close()
     state
   }
@@ -161,7 +161,7 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
       saveStatesWith: Option[JdbcStatePersister] = None)
   : M = {
 
-    val state = fromAggregationResult(result, offset)
+    val state = fromAggregationResult(result, offset + 1)
 
     calculateMetric(state, aggregateWith, saveStatesWith)
   }
@@ -393,6 +393,12 @@ private[deequ] object JdbcAnalyzers {
 
   def entityFrom(columns: Seq[String]): Entity.Value = {
     if (columns.size == 1) Entity.Column else Entity.Mutlicolumn
+  }
+
+  def conditionalSelection(column: String, where: Option[String]): String = {
+    where
+      .map { condition => s"CASE WHEN ($condition) THEN $column ELSE NULL END" }
+      .getOrElse(column)
   }
 
   def conditionalCount(where: Option[String]): String = {
