@@ -32,7 +32,7 @@ case class JdbcSum(column: String, where: Option[String] = None)
 
   override def fromAggregationResult(result: ResultSet, offset: Int): Option[SumState] = {
     ifNoNullsIn(result, offset) { _ =>
-      SumState(result.getDouble(offset + 1))
+      SumState(result.getDouble(offset))
     }
   }
 

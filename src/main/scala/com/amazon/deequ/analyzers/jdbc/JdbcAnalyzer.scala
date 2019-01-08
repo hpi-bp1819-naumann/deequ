@@ -382,7 +382,7 @@ private[deequ] object JdbcAnalyzers {
   : Option[S] = {
 
     val nullInResult = (offset until offset + howMany).exists { index =>
-      result.getObject(index + 1) == null }
+      result.getObject(index) == null }
 
     if (nullInResult) {
       None
