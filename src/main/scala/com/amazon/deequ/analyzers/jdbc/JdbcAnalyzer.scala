@@ -49,7 +49,7 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
     * @return
     */
   def preconditions: Seq[Table => Unit] = {
-    Seq.empty
+    Preconditions.hasTable() :: Nil
   }
 
   // TODO: This function is not defined in Analyzer.scala
@@ -401,10 +401,19 @@ private[deequ] object JdbcAnalyzers {
       .getOrElse(column)
   }
 
+  def conditionalSelectionWithNotNull(column: String, where: Option[String]): String = {
+
+    val whereWithIsNotNull = where
+      .map(condition => Some(condition + s" AND $column IS NOT NULL"))
+      .getOrElse(where)
+
+    conditionalSelection(column, whereWithIsNotNull)
+  }
+
   def conditionalCount(where: Option[String]): String = {
     where
-      .map { filter => s"""SUM(CASE WHEN ($filter) THEN 1 ELSE 0 END)""" }
-      .getOrElse("""COUNT(*)""")
+      .map { filter => s"SUM(CASE WHEN ($filter) THEN 1 ELSE 0 END)" }
+      .getOrElse("COUNT(*)")
   }
 
   def metricFromValue(
