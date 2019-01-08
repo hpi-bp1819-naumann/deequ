@@ -104,7 +104,7 @@ object JdbcFrequencyBasedAnalyzer {
 abstract class JdbcScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupOn: Seq[String])
   extends JdbcFrequencyBasedAnalyzer(columnsToGroupOn) {
 
-  def aggregationFunctions(numRows: Long): Seq[String]
+  //def aggregationFunctions(numRows: Long): Seq[String]
 
   override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): DoubleMetric = {
 

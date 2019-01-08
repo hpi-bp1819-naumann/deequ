@@ -381,7 +381,8 @@ private[deequ] object JdbcAnalyzers {
       (func: Unit => S)
   : Option[S] = {
 
-    val nullInResult = (offset until offset + howMany).exists { index => result.getObject(index + 1) != null }
+    val nullInResult = (offset until offset + howMany).exists { index =>
+      result.getObject(index + 1) == null }
 
     if (nullInResult) {
       None
