@@ -37,7 +37,7 @@ case class JdbcSize(where: Option[String] = None)
 
   override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatches] = {
     JdbcAnalyzers.ifNoNullsIn(result, offset) { _ =>
-      NumMatches(result.getLong(offset + 1))
+      NumMatches(result.getLong(offset))
     }
   }
 }
