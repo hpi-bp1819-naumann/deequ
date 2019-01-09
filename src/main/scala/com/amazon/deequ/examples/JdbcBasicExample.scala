@@ -18,7 +18,7 @@ package com.amazon.deequ.examples
 
 import com.amazon.deequ.JdbcVerificationSuite
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
-import com.amazon.deequ.analyzers.runners.JdbcAnalysisRunner
+import com.amazon.deequ.analyzers.runners.{JdbcAnalysisRunner, JdbcAnalyzerContext}
 import com.amazon.deequ.checks.CheckStatus._
 import com.amazon.deequ.checks.{JdbcCheck, JdbcCheckLevel}
 import com.amazon.deequ.constraints.{ConstraintStatus, JdbcConstraintStatus}
@@ -80,8 +80,12 @@ private[examples] object JdbcBasicAnalysisExample extends App {
   withJdbc { connection =>
     val table = Table("food_des", connection)
     val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
+      JdbcUniqueness("fat_factor"),
       JdbcSum("fat_factor"), JdbcMinimum("fat_factor"))
 
-    JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
+    val analysisResult = JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
+
+    println(analysisResult)
+    println(JdbcAnalyzerContext.successMetricsAsJson(analysisResult, analyzers))
   }
 }

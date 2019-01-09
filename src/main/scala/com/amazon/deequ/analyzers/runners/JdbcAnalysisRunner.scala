@@ -146,8 +146,6 @@ object JdbcAnalysisRunner {
     /* Create the failure metrics from the precondition violations */
     val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, table)
 
-
-    // TODO: ScanSharing not yet implemented
     /* Identify analyzers which require us to group the data */
     val (groupingAnalyzers, scanningAnalyzers) =
       passedAnalyzers.partition { _.isInstanceOf[JdbcGroupingAnalyzer[State[_], Metric[_]]] }
@@ -163,6 +161,7 @@ object JdbcAnalysisRunner {
     }
 
     var groupedMetrics = JdbcAnalyzerContext.empty
+
 
     /*
     /* Run grouping analyzers based on the columns which they need to group on */
@@ -296,13 +295,7 @@ object JdbcAnalysisRunner {
       saveStatesTo: Option[JdbcStatePersister] = None)
     : JdbcAnalyzerContext = {
 
-
-    // TODO: ScanSharing not yet implemented
-    val shareable = Seq.empty
-    val others = analyzers
-    val sharedResults = JdbcAnalyzerContext.empty
-
-    /* Identify shareable analyzers *
+    /* Identify shareable analyzers */
     val (shareable, others) =
       analyzers.partition { _.isInstanceOf[JdbcScanShareableAnalyzer[_, _]] }
 
@@ -319,7 +312,7 @@ object JdbcAnalysisRunner {
           current + analyzer.aggregationFunctions().length
         }
 
-        val results = data.agg(aggregations.head, aggregations.tail: _*).collect().head
+        val results = table.executeAggregations(aggregations)
 
         shareableAnalyzers.zip(offsets).map { case (analyzer, offset) =>
           analyzer ->
@@ -334,7 +327,7 @@ object JdbcAnalysisRunner {
       JdbcAnalyzerContext(metricsByAnalyzer.toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
     } else {
       JdbcAnalyzerContext.empty
-    }*/
+    }
 
     /* Run non-shareable analyzers separately */
     val otherMetrics = others

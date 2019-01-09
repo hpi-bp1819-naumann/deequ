@@ -46,12 +46,13 @@ case class JdbcPatternMatch(column: String, pattern: Regex, where: Option[String
   override def aggregationFunctions(): Seq[String] = {
 
     val summation = s"COUNT(${conditionalSelection(column,
-      Some(s"(SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL") :: where :: Nil)})"
+      Some(s"(SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL")
+        :: where :: Nil)})"
 
     summation :: conditionalCount(where) :: Nil
   }
 
   override def additionalPreconditions(): Seq[Table => Unit] = {
-    hasNoInjection(where) :: hasNoInjection(Some(pattern.toString())) :: Nil
+    hasColumn(column) :: hasNoInjection(where) :: hasNoInjection(Some(pattern.toString())) :: Nil
   }
 }

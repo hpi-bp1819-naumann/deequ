@@ -166,6 +166,14 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
     calculateMetric(state, aggregateWith, saveStatesWith)
   }
 
+  override def preconditions: Seq[Table => Unit] = {
+    additionalPreconditions() ++ super.preconditions
+  }
+
+  protected def additionalPreconditions(): Seq[Table => Unit] = {
+    Seq.empty
+  }
+
 }
 
 /** A scan-shareable analyzer that produces a DoubleMetric */
@@ -186,14 +194,6 @@ abstract class JdbcStandardScanShareableAnalyzer[S <: DoubleValuedState[_]](
 
   override private[deequ] def toFailureMetric(exception: Exception): DoubleMetric = {
     JdbcAnalyzers.metricFromFailure(exception, name, instance, entity)
-  }
-
-  override def preconditions: Seq[Table => Unit] = {
-    additionalPreconditions() ++ super.preconditions
-  }
-
-  protected def additionalPreconditions(): Seq[Table => Unit] = {
-    Seq.empty
   }
 }
 
