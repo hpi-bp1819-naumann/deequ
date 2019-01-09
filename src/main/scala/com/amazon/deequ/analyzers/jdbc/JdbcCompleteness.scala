@@ -26,7 +26,7 @@ case class JdbcCompleteness(column: String, where: Option[String] = None) extend
 
   override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatchesAndCount] = {
 
-    /** check whether the table is empty or not */
+    /** check whether the table was empty or not */
     if (result.getLong(offset + 1) == 0) {
       return None
     }

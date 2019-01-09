@@ -403,11 +403,17 @@ private[deequ] object JdbcAnalyzers {
 
   def conditionalSelectionWithNotNull(column: String, where: Option[String]): String = {
 
-    val whereWithIsNotNull = where
-      .map(condition => Some(condition + s" AND $column IS NOT NULL"))
-      .getOrElse(where)
+    conditionalSelection(column, where :: Some(s"$column IS NOT NULL") :: Nil)
+  }
 
-    conditionalSelection(column, whereWithIsNotNull)
+  def conditionalSelection(column: String, where: Seq[Option[String]]): String = {
+
+    val whereConcat = where
+      .map(whereOption => whereOption
+        .map(condition => condition)
+        .getOrElse("TRUE=TRUE"))
+
+    conditionalSelection(column, Some(whereConcat.mkString(" AND ")))
   }
 
   def conditionalCount(where: Option[String]): String = {
