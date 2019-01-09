@@ -163,6 +163,11 @@ object JdbcAnalysisRunner {
     var groupedMetrics = JdbcAnalyzerContext.empty
 
 
+    /* TODO: implement grouping */
+    groupedMetrics = groupedMetrics ++ JdbcAnalyzerContext(groupingAnalyzers
+      .map { analyzer => analyzer -> analyzer.calculate(table) }
+      .toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
+
     /*
     /* Run grouping analyzers based on the columns which they need to group on */
     groupingAnalyzers
