@@ -162,13 +162,6 @@ object JdbcAnalysisRunner {
 
     var groupedMetrics = JdbcAnalyzerContext.empty
 
-
-    /* TODO: implement grouping */
-    groupedMetrics = groupedMetrics ++ JdbcAnalyzerContext(groupingAnalyzers
-      .map { analyzer => analyzer -> analyzer.calculate(table) }
-      .toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
-
-    /*
     /* Run grouping analyzers based on the columns which they need to group on */
     groupingAnalyzers
       .map { _.asInstanceOf[JdbcGroupingAnalyzer[State[_], Metric[_]]] }
@@ -186,7 +179,6 @@ object JdbcAnalysisRunner {
           numRowsOfData = Option(numRows)
         }
       }
-      */
 
     val resultingAnalyzerContext = resultsComputedPreviously ++ preconditionFailures ++
       nonGroupedMetrics ++ groupedMetrics
@@ -259,7 +251,7 @@ object JdbcAnalysisRunner {
     JdbcAnalyzerContext(failures)
   }
 
-  /*
+
   private[this] def runGroupingAnalyzers(
       table: Table,
       groupingColumns: Seq[String],
@@ -291,7 +283,6 @@ object JdbcAnalysisRunner {
 
     frequenciesAndNumRows.numRows -> results
   }
-  */
 
   private[this] def runScanningAnalyzers(
       table: Table,
@@ -439,7 +430,7 @@ object JdbcAnalysisRunner {
       .toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]]
 
 
-    val groupedResults = JdbcAnalyzerContext.empty /* if (groupingAnalyzers.isEmpty) {
+    val groupedResults = if (groupingAnalyzers.isEmpty) {
       JdbcAnalyzerContext.empty
     } else {
       groupingAnalyzers
@@ -453,7 +444,7 @@ object JdbcAnalysisRunner {
             storageLevelOfGroupedDataForMultiplePasses)
         }
         .reduce { _ ++ _ }
-    }*/
+    }
 
     val results = preconditionFailures ++ JdbcAnalyzerContext(nonGroupedResults) ++ groupedResults
 
@@ -461,7 +452,7 @@ object JdbcAnalysisRunner {
 
     results
   }
-/*
+
   /** We only store the grouped dataframe for a particular grouping once; in order to retrieve it
     * for analyzers that require it, we need to test all of them */
   private[this] def findStateForParticularGrouping(
@@ -491,8 +482,9 @@ object JdbcAnalysisRunner {
     val numRows = frequenciesAndNumRows.numRows
 
     /* Identify all shareable analyzers */
-    val (shareable, others) =
-      analyzers.partition { _.isInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
+    // TODO: remove
+    val (shareable, others) = (Nil, analyzers)
+      //analyzers.partition { _.isInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
 
     /* Potentially cache the grouped data if we need to make several passes,
        controllable via the storage level */
@@ -506,6 +498,7 @@ object JdbcAnalysisRunner {
 
     val metricsByAnalyzer = if (shareableAnalyzers.nonEmpty) {
 
+      /* TODO: implement scan sharing for GroupingAnalyzers
       try {
         val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctions(numRows) }
         /* Compute offsets so that the analyzers can correctly pick their results from the row */
@@ -533,7 +526,10 @@ object JdbcAnalysisRunner {
         case error: Exception =>
           shareableAnalyzers
             .map { analyzer => analyzer -> analyzer.toFailureMetric(error) }
-      }
+      }*/
+
+      // TODO: remove
+      Map.empty
 
     } else {
       Map.empty
@@ -560,5 +556,4 @@ object JdbcAnalysisRunner {
     JdbcAnalyzerContext(
       (metricsByAnalyzer ++ otherMetrics).toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
   }
-*/
 }
