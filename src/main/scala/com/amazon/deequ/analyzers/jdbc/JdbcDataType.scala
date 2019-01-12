@@ -119,9 +119,8 @@ case class JdbcDataType(
   override def toFailureMetric(exception: Exception): HistogramMetric = {
     HistogramMetric(column, Failure(MetricCalculationException.wrapIfNecessary(exception)))
   }
-
-  // TODO: add overwrite
-  def additionalPreconditions: Seq[Table => Unit] = {
+  
+  override def additionalPreconditions: Seq[Table => Unit] = {
     hasColumn(column) :: hasNoInjection(where) :: Nil
   }
 }
