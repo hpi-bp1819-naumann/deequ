@@ -41,6 +41,6 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
   }
 
   override protected def additionalPreconditions(): Seq[Table => Unit] = {
-    hasTable() :: hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
+    hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 }
