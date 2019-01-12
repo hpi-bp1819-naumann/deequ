@@ -57,7 +57,7 @@ case class JdbcDataType(
 
     def countOccurrencesOf(pattern: String): String = {
       s"COUNT(${conditionalSelection(column,
-        Some(s"SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL") ::
+        Some(s"(SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL") ::
           where :: Nil)})"
     }
 
@@ -119,7 +119,7 @@ case class JdbcDataType(
   override def toFailureMetric(exception: Exception): HistogramMetric = {
     HistogramMetric(column, Failure(MetricCalculationException.wrapIfNecessary(exception)))
   }
-  
+
   override def additionalPreconditions: Seq[Table => Unit] = {
     hasColumn(column) :: hasNoInjection(where) :: Nil
   }
