@@ -37,26 +37,12 @@ case class JdbcStandardDeviation(column: String, where: Option[String] = None)
     val query =
       s"""
          |SELECT
-         | col_count,
-         | col_avg,
-         | SUM(POWER($column - col_avg, 2)) AS col_m2
-         |FROM
-         | (SELECT
-         |  $column
+         |  COUNT(*) AS num_rows,
+         |  SUM($column) AS sum, SUM(POWER($column, 2)) AS sum2
          | FROM
          |  ${table.name}
          | WHERE
-         |  ${where.getOrElse("TRUE=TRUE")}) AS A
-         |CROSS JOIN
-         | (SELECT
-         |   COUNT($column) AS col_count,
-         |   AVG($column) AS col_avg
-         |  FROM ${table.name}
-         |  WHERE
-         |   ${where.getOrElse("TRUE=TRUE")}) AS B
-         |GROUP BY
-         | col_count,
-         | col_avg
+         |  ${where.getOrElse("TRUE=TRUE")}
       """.stripMargin
 
     val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
@@ -65,13 +51,13 @@ case class JdbcStandardDeviation(column: String, where: Option[String] = None)
     val result = statement.executeQuery()
 
     if (result.next()) {
-      val col_avg = result.getDouble("col_avg")
-      val col_m2 = result.getDouble("col_m2")
-      val col_count = result.getDouble("col_count")
+      val num_rows = result.getDouble(1)
+      val sum = result.getDouble(2)
+      val sum2 = result.getDouble(3)
 
-      if (col_count > 0) {
+      if (num_rows > 0) {
         result.close()
-        return Some(StandardDeviationState(col_count, col_avg, col_m2))
+        return Some(StandardDeviationState(num_rows, sum/num_rows, sum2 - sum*sum/num_rows))
       }
     }
     result.close()
