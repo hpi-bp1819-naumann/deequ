@@ -24,8 +24,7 @@ object StandardDeviationWithJdbc extends App {
 
     val table = Table("food_des", connection)
 
-    val standardDeviationOfFatFactor = JdbcStandardDeviation("fat_factor",
-      Some("fat_factor < 5.0")).calculate(table)
+    val standardDeviationOfFatFactor = JdbcStandardDeviation("fat_factor").calculate(table)
 
     println(standardDeviationOfFatFactor)
 
