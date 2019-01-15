@@ -58,8 +58,6 @@ private[deequ] case class JdbcAnalysisBasedConstraint[S <: State[S], M, V](
 
     val metric = analysisResults.get(analyzer).map(_.asInstanceOf[Metric[M]])
 
-    println(metric)
-
     metric.map(pickValueAndAssert).getOrElse(
       // Analysis is missing
       JdbcConstraintResult(this, JdbcConstraintStatus.Failure,
