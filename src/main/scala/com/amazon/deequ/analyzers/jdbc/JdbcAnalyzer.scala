@@ -433,6 +433,12 @@ private[deequ] object JdbcAnalyzers {
       .getOrElse("COUNT(*)")
   }
 
+  def conditionalCountNotNull(column : String, where: Option[String]): String = {
+    where
+      .map { filter => s"SUM(CASE WHEN ($filter) AND $column IS NOT NULL THEN 1 ELSE 0 END)" }
+      .getOrElse(s"COUNT($column)")
+  }
+
   def metricFromValue(
       value: Double,
       name: String,

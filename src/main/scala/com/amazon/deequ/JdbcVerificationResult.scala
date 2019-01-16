@@ -37,16 +37,17 @@ case class JdbcVerificationResult(
 object JdbcVerificationResult {
 
   /*
-  def successMetricsAsDataFrame(
-                                 sparkSession: SparkSession,
-                                 verificationResult: JdbcVerificationResult,
-                                 forAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty)
-  : DataFrame = {
+    def successMetricsAsDataFrame(
+                                   sparkSession: SparkSession,
+                                   verificationResult: JdbcVerificationResult,
+                                   forAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty)
+    : DataFrame = {
 
-    val metricsAsAnalyzerContext = JdbcAnalyzerContext(verificationResult.metrics)
+      val metricsAsAnalyzerContext = JdbcAnalyzerContext(verificationResult.metrics)
 
-    JdbcAnalyzerContext.successMetricsAsDataFrame(sparkSession, metricsAsAnalyzerContext, forAnalyzers)
-  }*/
+      JdbcAnalyzerContext.successMetricsAsDataFrame(sparkSession, metricsAsAnalyzerContext,
+        forAnalyzers)
+  } */
 
   def successMetricsAsJson(verificationResult: JdbcVerificationResult,
                            forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty): String = {
@@ -57,19 +58,19 @@ object JdbcVerificationResult {
   }
 
   /*
-  def checkResultsAsDataFrame(
-                               sparkSession: SparkSession,
-                               verificationResult: JdbcVerificationResult,
-                               forChecks: Seq[Check] = Seq.empty)
-  : DataFrame = {
+    def checkResultsAsDataFrame(
+                                 sparkSession: SparkSession,
+                                 verificationResult: JdbcVerificationResult,
+                                 forChecks: Seq[Check] = Seq.empty)
+    : DataFrame = {
 
-    val simplifiedCheckResults = getSimplifiedCheckResultOutput(verificationResult)
+      val simplifiedCheckResults = getSimplifiedCheckResultOutput(verificationResult)
 
-    import sparkSession.implicits._
+      import sparkSession.implicits._
 
-    simplifiedCheckResults.toDF("check", "check_level", "check_status", "constraint",
-      "constraint_status", "constraint_message")
-  }*/
+      simplifiedCheckResults.toDF("check", "check_level", "check_status", "constraint",
+        "constraint_status", "constraint_message")
+  } */
 
   def checkResultsAsJson(verificationResult: JdbcVerificationResult,
                          forChecks: Seq[Check] = Seq.empty): String = {
@@ -116,5 +117,7 @@ object JdbcVerificationResult {
   }
 
   private[this] case class SimpleCheckResultOutput(checkDescription: String, checkLevel: String,
-                                                   checkStatus: String, constraint: String, constraintStatus: String, constraintMessage: String)
+                                                   checkStatus: String, constraint: String,
+                                                   constraintStatus: String,
+                                                   constraintMessage: String)
 }

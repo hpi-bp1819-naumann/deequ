@@ -80,7 +80,8 @@ private[deequ] case class JdbcAnalysisBasedConstraint[S <: State[S], M, V](
             var errorMessage = s"Value: $assertOn does not meet the constraint requirement!"
             hint.foreach(hint => errorMessage += s" $hint")
 
-            JdbcConstraintResult(this, JdbcConstraintStatus.Failure, Some(errorMessage), Some(metric))
+            JdbcConstraintResult(this, JdbcConstraintStatus.Failure,
+              Some(errorMessage), Some(metric))
           }
 
         } catch {
@@ -108,7 +109,8 @@ private[deequ] case class JdbcAnalysisBasedConstraint[S <: State[S], M, V](
     try {
       assertion(assertOn)
     } catch {
-      case e: Exception => throw JdbcAnalysisBasedConstraint.ConstraintAssertionException(e.getMessage)
+      case e: Exception =>
+        throw JdbcAnalysisBasedConstraint.ConstraintAssertionException(e.getMessage)
     }
 
 }

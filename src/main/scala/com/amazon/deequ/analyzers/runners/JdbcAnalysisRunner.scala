@@ -49,8 +49,8 @@ object JdbcAnalysisRunner {
     *
     * @param data tabular data on which the checks should be verified
     */
-  def onData(table: Table): JdbcAnalysisRunBuilder = {
-    new JdbcAnalysisRunBuilder(table)
+  def onData(data: Table): JdbcAnalysisRunBuilder = {
+    new JdbcAnalysisRunBuilder(data)
   }
 
   /**
@@ -69,14 +69,14 @@ object JdbcAnalysisRunner {
     */
   @deprecated("Use onData instead for a fluent API", "10-07-2019")
   def run(
-      table: Table,
+      data: Table,
       analysis: JdbcAnalysis,
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None,
       storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK)
     : JdbcAnalyzerContext = {
 
-    doAnalysisRun(table, analysis.analyzers, aggregateWith, saveStatesWith,
+    doAnalysisRun(data, analysis.analyzers, aggregateWith, saveStatesWith,
       storageLevelOfGroupedDataForMultiplePasses)
   }
 
@@ -97,7 +97,7 @@ object JdbcAnalysisRunner {
     * @return AnalyzerContext holding the requested metrics per analyzer
     */
   private[deequ] def doAnalysisRun(
-      table: Table,
+      data: Table,
       analyzers: Seq[JdbcAnalyzer[_, Metric[_]]],
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None,
@@ -138,13 +138,13 @@ object JdbcAnalysisRunner {
     /* Find all analyzers which violate their preconditions */
     val passedAnalyzers = analyzersToRun
       .filter { analyzer =>
-        Preconditions.findFirstFailing(table, analyzer.preconditions).isEmpty
+        Preconditions.findFirstFailing(data, analyzer.preconditions).isEmpty
       }
 
     val failedAnalyzers = analyzersToRun.diff(passedAnalyzers)
 
     /* Create the failure metrics from the precondition violations */
-    val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, table)
+    val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, data)
 
     /* Identify analyzers which require us to group the data */
     val (groupingAnalyzers, scanningAnalyzers) =
@@ -152,7 +152,7 @@ object JdbcAnalysisRunner {
 
     /* Run the analyzers which do not require grouping in a single pass over the data */
     val nonGroupedMetrics =
-      runScanningAnalyzers(table, scanningAnalyzers, aggregateWith, saveStatesWith)
+      runScanningAnalyzers(data, scanningAnalyzers, aggregateWith, saveStatesWith)
 
     // TODO this can be further improved, we can get the number of rows from other metrics as well
     // TODO we could also insert an extra JdbcSize() computation if we have to scan the data anyways
@@ -169,7 +169,7 @@ object JdbcAnalysisRunner {
       .foreach { case (groupingColumns, analyzersForGrouping) =>
 
         val (numRows, metrics) =
-          runGroupingAnalyzers(table, groupingColumns, analyzersForGrouping, aggregateWith,
+          runGroupingAnalyzers(data, groupingColumns, analyzersForGrouping, aggregateWith,
             saveStatesWith, storageLevelOfGroupedDataForMultiplePasses, numRowsOfData)
 
         groupedMetrics = groupedMetrics ++ metrics
@@ -350,7 +350,8 @@ object JdbcAnalysisRunner {
     }
   }
 
-  /** Compute frequency based analyzer metric from aggregation result, mapping generic exceptions
+  /**
+    * Compute frequency based analyzer metric from aggregation result, mapping generic exceptions
     * to a failure metric *
   private def successOrFailureMetricFrom(
       analyzer: JdbcScanShareableFrequencyBasedAnalyzer,
@@ -363,14 +364,14 @@ object JdbcAnalysisRunner {
     } catch {
       case error: Exception => analyzer.toFailureMetric(error)
     }
-  }*/
+  } */
 
   /**
     * Compute the metrics from the analyzers configured in the analyis, instead of running
     * directly on data, this computation leverages (and aggregates) existing states which have
     * previously been computed on the data.
     *
-    * @param schema schema of the data frame from which the states were computed
+    * @param table table from which the states were computed
     * @param analysis the analysis to compute
     * @param stateLoaders loaders from which we retrieve the states to aggregate
     * @param saveStatesWith persist resulting states for the configured analyzers (optional)
@@ -421,7 +422,6 @@ object JdbcAnalysisRunner {
       passedAnalyzers.partition { _.isInstanceOf[JdbcGroupingAnalyzer[State[_], Metric[_]]] }
 
     val nonGroupedResults = scanningAnalyzers
-      .map { _.asInstanceOf[JdbcAnalyzer[State[_], Metric[_]]] }
       .flatMap { analyzer =>
         analyzer
           .loadStateAndComputeMetric(aggregatedStates)
@@ -484,13 +484,13 @@ object JdbcAnalysisRunner {
     /* Identify all shareable analyzers */
     // TODO: remove
     val (shareable, others) = (Nil, analyzers)
-      //analyzers.partition { _.isInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
+      // analyzers.partition { _.isInstanceOf[JdbcScanShareableFrequencyBasedAnalyzer] }
 
     /* Potentially cache the grouped data if we need to make several passes,
        controllable via the storage level */
     if (others.nonEmpty) {
       // TODO
-      //frequenciesAndNumRows.frequencies.persist(storageLevelOfGroupedDataForMultiplePasses)
+      // frequenciesAndNumRows.frequencies.persist(storageLevelOfGroupedDataForMultiplePasses)
     }
 
     val shareableAnalyzers = shareable.map {
@@ -499,34 +499,34 @@ object JdbcAnalysisRunner {
     val metricsByAnalyzer = if (shareableAnalyzers.nonEmpty) {
 
       /* TODO: implement scan sharing for GroupingAnalyzers
-      try {
-        val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctions(numRows) }
-        /* Compute offsets so that the analyzers can correctly pick their results from the row */
-        val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
-          current + analyzer.aggregationFunctions(numRows).length
-        }
-
-        /* Execute aggregation on grouped data */
-        /*
-        val results = frequenciesAndNumRows.frequencies
-          .agg(aggregations.head, aggregations.tail: _*)
-          .collect()
-          .head
-         */
-        val results = frequenciesAndNumRows.frequencies
-          .groupBy(_ => (aggregations.head, aggregations.tail: _*))
-          .toSeq
-          .head
-
-        shareableAnalyzers.zip(offsets)
-          .map { case (analyzer, offset) =>
-            analyzer -> successOrFailureMetricFrom(analyzer, results, offset)
+        try {
+          val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctions(numRows) }
+          /* Compute offsets so that the analyzers can correctly pick their results from the row */
+          val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
+            current + analyzer.aggregationFunctions(numRows).length
           }
-      } catch {
-        case error: Exception =>
-          shareableAnalyzers
-            .map { analyzer => analyzer -> analyzer.toFailureMetric(error) }
-      }*/
+
+          /* Execute aggregation on grouped data */
+          /*
+          val results = frequenciesAndNumRows.frequencies
+            .agg(aggregations.head, aggregations.tail: _*)
+            .collect()
+            .head
+           */
+          val results = frequenciesAndNumRows.frequencies
+            .groupBy(_ => (aggregations.head, aggregations.tail: _*))
+            .toSeq
+            .head
+
+          shareableAnalyzers.zip(offsets)
+            .map { case (analyzer, offset) =>
+              analyzer -> successOrFailureMetricFrom(analyzer, results, offset)
+            }
+        } catch {
+          case error: Exception =>
+            shareableAnalyzers
+              .map { analyzer => analyzer -> analyzer.toFailureMetric(error) }
+      } */
 
       // TODO: remove
       Map.empty
@@ -551,7 +551,7 @@ object JdbcAnalysisRunner {
     saveStatesTo.foreach { _.persist(analyzers.head, frequenciesAndNumRows) }
 
     // TODO
-    //frequenciesAndNumRows.frequencies.unpersist()
+    // frequenciesAndNumRows.frequencies.unpersist()
 
     JdbcAnalyzerContext(
       (metricsByAnalyzer ++ otherMetrics).toMap[JdbcAnalyzer[_, Metric[_]], Metric[_]])
