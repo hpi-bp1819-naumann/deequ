@@ -38,7 +38,7 @@ case class JdbcCompleteness(column: String, where: Option[String] = None) extend
 
   override def aggregationFunctions(): Seq[String] = {
 
-    val summation = s"COUNT(${conditionalSelectionWithNotNull(column, where)})"
+    val summation = s"COUNT(${conditionalSelectionNotNull(column, where)})"
 
     summation :: conditionalCount(where) :: Nil
   }

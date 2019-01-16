@@ -240,7 +240,8 @@ object Preconditions {
     val connection = table.jdbcConnection
 
     val metaData = connection.getMetaData
-    val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
+    val result = metaData.getTables(null, null, null,
+      Array[String]("TABLE"))
 
     var hasTable = false
 
@@ -401,9 +402,19 @@ private[deequ] object JdbcAnalyzers {
       .getOrElse(column)
   }
 
-  def conditionalSelectionWithNotNull(column: String, where: Option[String]): String = {
+  def conditionalSelectionNotNull(column: String, where: Option[String]): String = {
 
     conditionalSelection(column, where :: Some(s"$column IS NOT NULL") :: Nil)
+  }
+
+  def conditionalNotNull(firstColumn: String, secondColumn: String, where: Option[String],
+                         consequent: String): String = {
+    where
+      .map { filter =>
+        s"CASE WHEN ($firstColumn IS NOT NULL AND $secondColumn IS NOT NULL AND $filter) THEN " +
+          s"$consequent ELSE NULL END" }
+      .getOrElse(s"CASE WHEN ($firstColumn IS NOT NULL AND $secondColumn IS NOT NULL) THEN " +
+        s"$consequent ELSE NULL END")
   }
 
   def conditionalSelection(column: String, where: Seq[Option[String]]): String = {
