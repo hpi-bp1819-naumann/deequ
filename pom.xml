@@ -87,7 +87,7 @@
             <artifactId>breeze_${scala.major.version}</artifactId>
             <version>0.13.2</version>
         </dependency>
-
+        <!--Install JDBC drivers for supported database systems -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -98,6 +98,12 @@
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
             <version>2.3.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>7.0.0.jre8</version>
         </dependency>
 
         <dependency>
