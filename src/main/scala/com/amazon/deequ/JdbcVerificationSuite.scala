@@ -21,7 +21,6 @@ import com.amazon.deequ.analyzers.applicability.{AnalyzersApplicability, Applica
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, JdbcStateLoader, JdbcStatePersister, Table}
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.checks.{Check, JdbcCheck, JdbcCheckStatus}
-import com.amazon.deequ.io.DfsUtils
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.repository.{JdbcMetricsRepository, ResultKey}
 import org.apache.spark.sql.SparkSession
