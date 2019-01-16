@@ -16,13 +16,12 @@
 
 package com.amazon.deequ
 
-import com.amazon.deequ.analyzers.{Analyzer, State}
+import com.amazon.deequ.analyzers.State
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
 import com.amazon.deequ.anomalydetection.AnomalyDetectionStrategy
-import com.amazon.deequ.checks.{Check, CheckLevel, JdbcCheck, JdbcCheckLevel}
+import com.amazon.deequ.checks.{JdbcCheck, JdbcCheckLevel}
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.repository._
-import org.apache.spark.sql.SparkSession
 
 /** A class to build a VerificationRun using a fluent API */
 class JdbcVerificationRunBuilder(val data: Table) {
@@ -109,7 +108,8 @@ class JdbcVerificationRunBuilder(val data: Table) {
     * @param metricsRepository A metrics repository to store and load results associated with the
     *                          run
     */
-  def useRepository(metricsRepository: JdbcMetricsRepository): JdbcVerificationRunBuilderWithRepository = {
+  def useRepository(metricsRepository: JdbcMetricsRepository)
+    : JdbcVerificationRunBuilderWithRepository = {
 
     new JdbcVerificationRunBuilderWithRepository(this, Option(metricsRepository))
   }

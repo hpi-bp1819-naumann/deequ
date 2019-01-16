@@ -54,7 +54,8 @@ class JdbcFileSystemMetricsRepository(connection: Connection, path: String)
     val previousAnalysisResults = load().get().filter(_.resultKey != resultKey)
 
     val serializedResult = JdbcAnalysisResultSerde.serialize(
-      previousAnalysisResults ++ Seq(JdbcAnalysisResult(resultKey, analyzerContextWithSuccessfulValues))
+      previousAnalysisResults ++ Seq(JdbcAnalysisResult(resultKey,
+        analyzerContextWithSuccessfulValues))
     )
 
     JdbcFileSystemMetricsRepository.writeToFileOnDfs(connection, path, {
@@ -230,4 +231,4 @@ object JdbcFileSystemMetricsRepository {
     (fs, qualifiedPath)
   }
 }
-*/
+ */

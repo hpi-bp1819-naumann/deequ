@@ -109,7 +109,8 @@ class JdbcVerificationSuite {
     verificationResult: JdbcVerificationResult)
   : Unit = {
 
-    /*fileOutputOptions.sparkSession.foreach { session =>
+    /*
+      fileOutputOptions.sparkSession.foreach { session =>
       fileOutputOptions.saveCheckResultsJsonToPath.foreach { profilesOutput =>
 
         DfsUtils.writeToTextFileOnDfs(session, profilesOutput,
@@ -129,7 +130,7 @@ class JdbcVerificationSuite {
             writer.newLine()
           }
         }
-    }*/
+    } */
   }
 
   private[this] def saveOrAppendResultsIfNecessary(

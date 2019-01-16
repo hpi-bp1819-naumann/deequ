@@ -107,8 +107,10 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def isComplete(column: String, hint: Option[String] = None): JdbcCheckWithLastConstraintFilterable = {
-    addFilterableConstraint { filter => completenessConstraint(column, JdbcCheck.IsOne, filter, hint) }
+  def isComplete(column: String, hint: Option[String] = None)
+    : JdbcCheckWithLastConstraintFilterable = {
+    addFilterableConstraint {
+      filter => completenessConstraint(column, JdbcCheck.IsOne, filter, hint) }
   }
 
   /**
@@ -216,8 +218,8 @@ case class JdbcCheck(
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
     */
-  def hasUniqueness(column: String, assertion: Double => Boolean, hint: Option[String]): JdbcCheck = {
-    hasUniqueness(Seq(column), assertion, hint)
+  def hasUniqueness(column: String, assertion: Double => Boolean, hint: Option[String])
+    : JdbcCheck = {hasUniqueness(Seq(column), assertion, hint)
   }
 
   /**

@@ -23,20 +23,23 @@ import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, isNumeric}
 
 case class JdbcStandardDeviation(column: String, where: Option[String] = None)
-  extends JdbcStandardScanShareableAnalyzer[StandardDeviationState]("StandardDeviation", column) {
+  extends JdbcStandardScanShareableAnalyzer[StandardDeviationState](
+    "StandardDeviation", column) {
 
   override def aggregationFunctions() : Seq[String] = {
-    conditionalCountNotNull(column, where) :: s"SUM(${conditionalSelection(column, where)})" :: s"SUM(POWER(${conditionalSelection(column, where)}, 2))" :: Nil
+    conditionalCountNotNull(column, where) :: s"SUM(${conditionalSelection(column, where)})" ::
+      s"SUM(POWER(${conditionalSelection(column, where)}, 2))" :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[StandardDeviationState] = {
-    ifNoNullsIn(result, offset, 3){ _ =>
-      val num_rows = result.getDouble(offset)
-      val col_sum = result.getDouble(offset + 1)
-      val col_sum_squared = result.getDouble(offset + 2)
-      val col_avg : Double = col_sum / num_rows
-      val m2 : Double = col_sum_squared - col_sum * col_sum / num_rows
-      StandardDeviationState(num_rows, col_avg, m2)
+  override def fromAggregationResult(result: ResultSet, offset: Int)
+    : Option[StandardDeviationState] = {
+      ifNoNullsIn(result, offset, 3) { _ =>
+        val num_rows = result.getDouble(offset)
+        val col_sum = result.getDouble(offset + 1)
+        val col_sum_squared = result.getDouble(offset + 2)
+        val col_avg : Double = col_sum / num_rows
+        val m2 : Double = col_sum_squared - col_sum * col_sum / num_rows
+        StandardDeviationState(num_rows, col_avg, m2)
     }
   }
 
