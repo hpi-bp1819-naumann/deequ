@@ -72,7 +72,7 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
 }
 
 /** Base class for analyzers that require to group the data by specific columns */
-abstract class GroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnalyzer[S, M] {
+abstract class JdbcGroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnalyzer[S, M] {
 
   /** The columns to group the data by */
   def groupingColumns(): Seq[String]
@@ -247,8 +247,69 @@ private[deequ] object JdbcAnalyzers {
     }
   }
 
+  /** Tests whether the result columns from offset to offset + howMany are non-null */
+  def ifNoNullsIn[S <: State[_]](
+                                  result: JdbcRow,
+                                  offset: Int,
+                                  howMany: Int = 1)
+                                (func: Unit => S)
+  : Option[S] = {
+
+    val nullInResult = (offset until offset + howMany).exists { index =>
+      result.getObject(index) == null }
+
+    if (nullInResult) {
+      None
+    } else {
+      Option(func(Unit))
+    }
+  }
+
   def entityFrom(columns: Seq[String]): Entity.Value = {
     if (columns.size == 1) Entity.Column else Entity.Mutlicolumn
+  }
+
+  def conditionalSelection(column: String, where: Option[String]): String = {
+    where
+      .map { condition => s"CASE WHEN ($condition) THEN $column ELSE NULL END" }
+      .getOrElse(column)
+  }
+
+  def conditionalSelectionNotNull(column: String, where: Option[String]): String = {
+
+    conditionalSelection(column, where :: Some(s"$column IS NOT NULL") :: Nil)
+  }
+
+  def conditionalNotNull(firstColumn: String, secondColumn: String, where: Option[String],
+                         consequent: String): String = {
+    where
+      .map { filter =>
+        s"CASE WHEN ($firstColumn IS NOT NULL AND $secondColumn IS NOT NULL AND $filter) THEN " +
+          s"$consequent ELSE NULL END" }
+      .getOrElse(s"CASE WHEN ($firstColumn IS NOT NULL AND $secondColumn IS NOT NULL) THEN " +
+        s"$consequent ELSE NULL END")
+  }
+
+  def conditionalSelection(column: String, where: Seq[Option[String]]): String = {
+
+    val whereConcat = where
+      .map(whereOption => whereOption
+        .map(condition => condition)
+        .getOrElse("TRUE=TRUE"))
+
+    conditionalSelection(column, Some(whereConcat.mkString(" AND ")))
+  }
+
+  def conditionalCount(where: Option[String]): String = {
+    where
+      .map { filter => s"SUM(CASE WHEN ($filter) THEN 1 ELSE 0 END)" }
+      .getOrElse("COUNT(*)")
+  }
+
+  def conditionalCountNotNull(column : String, where: Option[String]): String = {
+    where
+      .map { filter => s"SUM(CASE WHEN ($filter) AND $column IS NOT NULL THEN 1 ELSE 0 END)" }
+      .getOrElse(s"COUNT($column)")
   }
 
   def metricFromValue(
