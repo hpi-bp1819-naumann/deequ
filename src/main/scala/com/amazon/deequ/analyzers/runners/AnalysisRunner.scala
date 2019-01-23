@@ -17,12 +17,14 @@
 package com.amazon.deequ.analyzers.runners
 
 import com.amazon.deequ.analyzers._
+import com.amazon.deequ.analyzers.jdbc.{JdbcPreconditions, Table}
 import com.amazon.deequ.io.DfsUtils
 import com.amazon.deequ.metrics.{DoubleMetric, Metric}
 import com.amazon.deequ.repository.{MetricsRepository, ResultKey}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.storage.StorageLevel
+
 import scala.util.Success
 
 private[deequ] case class AnalysisRunnerRepositoryOptions(
@@ -94,9 +96,29 @@ object AnalysisRunner {
     * @param metricsRepositoryOptions Options related to the MetricsRepository
     * @param fileOutputOptions Options related to FileOuput using a SparkSession
     * @return AnalyzerContext holding the requested metrics per analyzer
-    */
+    *//*
   private[deequ] def doAnalysisRun(
-      data: DataFrame,
+      data: Any,
+      analyzers: Seq[Analyzer[_, Metric[_]]],
+      aggregateWith: Option[StateLoader] = None,
+      saveStatesWith: Option[StatePersister] = None,
+      storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK,
+      metricsRepositoryOptions: AnalysisRunnerRepositoryOptions =
+      AnalysisRunnerRepositoryOptions(),
+      fileOutputOptions: AnalysisRunnerFileOutputOptions =
+      AnalysisRunnerFileOutputOptions())
+  : AnalyzerContext = {
+
+    data match {
+      case df: DataFrame => doAnalysisRunWithSpark(df, analyzers, aggregateWith, saveStatesWith, storageLevelOfGroupedDataForMultiplePasses, metricsRepositoryOptions, fileOutputOptions)
+      case tbl: Table => doAnalysisRunWithJdbc(tbl, analyzers, aggregateWith, saveStatesWith, storageLevelOfGroupedDataForMultiplePasses, metricsRepositoryOptions, fileOutputOptions)
+
+      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+    }
+  }*/
+
+  private[deequ] def doAnalysisRun(
+      data: Any,
       analyzers: Seq[Analyzer[_, Metric[_]]],
       aggregateWith: Option[StateLoader] = None,
       saveStatesWith: Option[StatePersister] = None,
@@ -134,16 +156,38 @@ object AnalysisRunner {
           s"the metrics for these analyzers would be needed: ${analyzersToRun.mkString(", ")}")
     }
 
-    /* Find all analyzers which violate their preconditions */
-    val passedAnalyzers = analyzersToRun
-      .filter { analyzer =>
-        Preconditions.findFirstFailing(data.schema, analyzer.preconditions).isEmpty
-      }
+    val (passedAnalyzers, preconditionFailures) = data match {
 
-    val failedAnalyzers = analyzersToRun.diff(passedAnalyzers)
+      case df: DataFrame =>
+        /* Find all analyzers which violate their preconditions */
+        val passedAnalyzers = analyzersToRun
+          .filter { analyzer =>
+            Preconditions.findFirstFailing(df.schema, analyzer.preconditionsWithSpark).isEmpty
+          }
 
-    /* Create the failure metrics from the precondition violations */
-    val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, data.schema)
+        val failedAnalyzers = analyzersToRun.diff(passedAnalyzers)
+
+        /* Create the failure metrics from the precondition violations */
+        val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, df.schema)
+
+        (passedAnalyzers, preconditionFailures)
+
+      case tbl: Table =>
+        /* Find all analyzers which violate their preconditions */
+        val passedAnalyzers = analyzersToRun
+          .filter { analyzer =>
+            JdbcPreconditions.findFirstFailing(tbl, analyzer.preconditionsWithJdbc).isEmpty
+          }
+
+        val failedAnalyzers = analyzersToRun.diff(passedAnalyzers)
+
+        /* Create the failure metrics from the precondition violations */
+        val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, tbl)
+
+        (passedAnalyzers, preconditionFailures)
+
+      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+    }
 
     /* Identify analyzers which require us to group the data */
     val (groupingAnalyzers, scanningAnalyzers) =
@@ -237,7 +281,7 @@ object AnalysisRunner {
     val failures = failedAnalyzers.map { analyzer =>
 
       val firstException = Preconditions
-        .findFirstFailing(schema, analyzer.preconditions).get
+        .findFirstFailing(schema, analyzer.preconditionsWithSpark).get
 
       analyzer -> analyzer.toFailureMetric(firstException)
     }
@@ -246,8 +290,25 @@ object AnalysisRunner {
     AnalyzerContext(failures)
   }
 
+  private[this] def computePreconditionFailureMetrics(
+     failedAnalyzers: Seq[Analyzer[State[_], Metric[_]]],
+     table: Table)
+  : AnalyzerContext = {
+
+    val failures = failedAnalyzers.map { analyzer =>
+
+      val firstException = JdbcPreconditions
+        .findFirstFailing(table, analyzer.preconditionsWithJdbc).get
+
+      analyzer -> analyzer.toFailureMetric(firstException)
+    }
+      .toMap[Analyzer[_, Metric[_]], Metric[_]]
+
+    AnalyzerContext(failures)
+  }
+
   private[this] def runGroupingAnalyzers(
-      data: DataFrame,
+      data: Any,
       groupingColumns: Seq[String],
       analyzers: Seq[GroupingAnalyzer[State[_], Metric[_]]],
       aggregateWith: Option[StateLoader],
@@ -277,7 +338,7 @@ object AnalysisRunner {
   }
 
   private[this] def runScanningAnalyzers(
-      data: DataFrame,
+      data: Any,
       analyzers: Seq[Analyzer[State[_], Metric[_]]],
       aggregateWith: Option[StateLoader] = None,
       saveStatesTo: Option[StatePersister] = None)
@@ -293,14 +354,30 @@ object AnalysisRunner {
     val sharedResults = if (shareableAnalyzers.nonEmpty) {
 
       val metricsByAnalyzer = try {
-        val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctions() }
 
-        /* Compute offsets so that the analyzers can correctly pick their results from the row */
-        val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
-          current + analyzer.aggregationFunctions().length
+        val (results: AggregationResult, offsets) = data match {
+          case df: DataFrame =>
+            val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithSpark() }
+
+            /* Compute offsets so that the analyzers can correctly pick their results from the row */
+            val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
+              current + analyzer.aggregationFunctionsWithSpark().length
+            }
+
+            (AggregationResult.from(df.agg(aggregations.head, aggregations.tail: _*).collect().head), offsets)
+
+          case tbl: Table =>
+            val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithJdbc() }
+
+            /* Compute offsets so that the analyzers can correctly pick their results from the row */
+            val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
+              current + analyzer.aggregationFunctionsWithJdbc().length
+            }
+
+            (tbl.executeAggregations(aggregations), offsets)
+
+          case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
         }
-
-        val results = data.agg(aggregations.head, aggregations.tail: _*).collect().head
 
         shareableAnalyzers.zip(offsets).map { case (analyzer, offset) =>
           analyzer ->
@@ -329,7 +406,7 @@ object AnalysisRunner {
     * to a failure metric */
   private def successOrFailureMetricFrom(
       analyzer: ScanShareableAnalyzer[State[_], Metric[_]],
-      aggregationResult: Row,
+      aggregationResult: AggregationResult,
       offset: Int,
       aggregateWith: Option[StateLoader],
       saveStatesTo: Option[StatePersister])
@@ -346,7 +423,7 @@ object AnalysisRunner {
     * to a failure metric */
   private def successOrFailureMetricFrom(
       analyzer: ScanShareableFrequencyBasedAnalyzer,
-      aggregationResult: Row,
+      aggregationResult: AggregationResult,
       offset: Int)
     : Metric[_] = {
 
@@ -379,7 +456,7 @@ object AnalysisRunner {
       saveStatesWith: Option[StatePersister] = None,
       storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK,
       metricsRepository: Option[MetricsRepository] = None,
-      saveOrAppendResultsWithKey: Option[ResultKey] = None                             )
+      saveOrAppendResultsWithKey: Option[ResultKey] = None)
     : AnalyzerContext = {
 
     if (analysis.analyzers.isEmpty || stateLoaders.isEmpty) {
@@ -391,7 +468,7 @@ object AnalysisRunner {
     /* Find all analyzers which violate their preconditions */
     val passedAnalyzers = analyzers
       .filter { analyzer =>
-        Preconditions.findFirstFailing(schema, analyzer.preconditions).isEmpty
+        Preconditions.findFirstFailing(schema, analyzer.preconditionsWithSpark).isEmpty
       }
 
     val failedAnalyzers = analyzers.diff(passedAnalyzers)
@@ -479,7 +556,12 @@ object AnalysisRunner {
     /* Potentially cache the grouped data if we need to make several passes,
        controllable via the storage level */
     if (others.nonEmpty) {
-      frequenciesAndNumRows.frequencies.persist(storageLevelOfGroupedDataForMultiplePasses)
+      frequenciesAndNumRows match {
+        case state: FrequenciesAndNumRowsWithSpark =>
+          state.frequencies.persist(storageLevelOfGroupedDataForMultiplePasses)
+
+        case _ =>
+      }
     }
 
     val shareableAnalyzers = shareable.map { _.asInstanceOf[ScanShareableFrequencyBasedAnalyzer] }
@@ -487,17 +569,36 @@ object AnalysisRunner {
     val metricsByAnalyzer = if (shareableAnalyzers.nonEmpty) {
 
       try {
-        val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctions(numRows) }
-        /* Compute offsets so that the analyzers can correctly pick their results from the row */
-        val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
-          current + analyzer.aggregationFunctions(numRows).length
-        }
 
-        /* Execute aggregation on grouped data */
-        val results = frequenciesAndNumRows.frequencies
-          .agg(aggregations.head, aggregations.tail: _*)
-          .collect()
-          .head
+        val (results, offsets) = frequenciesAndNumRows match {
+
+          case state: FrequenciesAndNumRowsWithSpark =>
+            val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithSpark(numRows) }
+            /* Compute offsets so that the analyzers can correctly pick their results from the row */
+            val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
+              current + analyzer.aggregationFunctionsWithSpark(numRows).length
+            }
+
+            /* Execute aggregation on grouped data */
+            val results = state.frequencies
+              .agg(aggregations.head, aggregations.tail: _*)
+              .collect()
+              .head
+
+            (AggregationResult.from(results), offsets)
+
+          case state: FrequenciesAndNumRowsWithJdbc =>
+            val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithJdbc(numRows) }
+
+            /* Compute offsets so that the analyzers can correctly pick their results from the row */
+            val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
+              current + analyzer.aggregationFunctionsWithJdbc(numRows).length
+            }
+
+            (state.table.executeAggregations(aggregations), offsets)
+
+          case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+        }
 
         shareableAnalyzers.zip(offsets)
           .map { case (analyzer, offset) =>
@@ -528,7 +629,12 @@ object AnalysisRunner {
     /* Potentially store states */
     saveStatesTo.foreach { _.persist(analyzers.head, frequenciesAndNumRows) }
 
-    frequenciesAndNumRows.frequencies.unpersist()
+    frequenciesAndNumRows match {
+      case state: FrequenciesAndNumRowsWithSpark =>
+        state.frequencies.unpersist()
+
+      case _ =>
+    }
 
     AnalyzerContext((metricsByAnalyzer ++ otherMetrics).toMap[Analyzer[_, Metric[_]], Metric[_]])
   }

@@ -17,6 +17,7 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers.COUNT_COL
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{col, lit, sum}
 import org.apache.spark.sql.types.DoubleType
@@ -26,8 +27,16 @@ import org.apache.spark.sql.types.DoubleType
 case class Uniqueness(columns: Seq[String])
   extends ScanShareableFrequencyBasedAnalyzer("Uniqueness", columns) {
 
-  override def aggregationFunctions(numRows: Long): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(numRows: Long): Seq[Column] = {
     (sum(col(COUNT_COL).equalTo(lit(1)).cast(DoubleType)) / numRows) :: Nil
+  }
+
+  override def aggregationFunctionsWithJdbc(numRows: Long): Seq[String] = {
+
+    val conditions = Some(s"${columns.head} IS NOT NULL") :: Some("absolute = 1") :: Nil
+    val count = s"COUNT(${JdbcAnalyzers.conditionalSelection("1", conditions)})"
+
+    s"(${JdbcAnalyzers.toDouble(count)} / $numRows)" :: Nil
   }
 }
 

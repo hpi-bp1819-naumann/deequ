@@ -17,8 +17,9 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers
 import com.amazon.deequ.metrics.Entity
-import org.apache.spark.sql.{Column, Row}
+import org.apache.spark.sql.Column
 
 case class NumMatches(numMatches: Long) extends DoubleValuedState[NumMatches] {
 
@@ -36,11 +37,15 @@ case class NumMatches(numMatches: Long) extends DoubleValuedState[NumMatches] {
 case class Size(where: Option[String] = None)
   extends StandardScanShareableAnalyzer[NumMatches]("Size", "*", Entity.Dataset) {
 
-  override def aggregationFunctions(): Seq[Column] = {
-    conditionalCount(where) :: Nil
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
+    Analyzers.conditionalCount(where) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatches] = {
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    JdbcAnalyzers.conditionalCount(where) :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[NumMatches] = {
     ifNoNullsIn(result, offset) { _ =>
       NumMatches(result.getLong(offset))
     }

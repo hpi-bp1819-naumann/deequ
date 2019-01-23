@@ -39,7 +39,7 @@ object AggregationResult {
     var row = Seq.empty[Any]
     val numColumns = result.size
 
-    for (col <- 1 to numColumns) {
+    for (col <- 0 until numColumns) {
       row = row :+ result.get(col)
     }
 

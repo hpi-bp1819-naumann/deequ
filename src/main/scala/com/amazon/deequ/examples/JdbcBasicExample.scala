@@ -16,15 +16,11 @@
 
 package com.amazon.deequ.examples
 
-import com.amazon.deequ.JdbcVerificationSuite
-import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
-import com.amazon.deequ.analyzers.runners.{JdbcAnalysisRunner, JdbcAnalyzerContext}
-import com.amazon.deequ.checks.CheckStatus._
-import com.amazon.deequ.checks.{JdbcCheck, JdbcCheckLevel}
-import com.amazon.deequ.constraints.JdbcConstraintStatus
+import com.amazon.deequ.analyzers.runners.AnalysisRunner
+import com.amazon.deequ.analyzers.{Analyzer, Sum, Uniqueness}
 import com.amazon.deequ.examples.ExampleUtils._
 import com.amazon.deequ.metrics.Metric
-
+/*
 private[examples] object JdbcBasicExample extends App {
 
   val data = Table("example_table", jdbcUrl, connectionProperties())
@@ -66,19 +62,35 @@ private[examples] object JdbcBasicExample extends App {
       }
   }
 }
-
+*/
 
 import com.amazon.deequ.analyzers.jdbc._
 
 private[examples] object JdbcBasicAnalysisExample extends App {
 
   val table = Table("food_des", jdbcUrl, connectionProperties())
-  val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
-    JdbcUniqueness("fat_factor"), JdbcDistinctness("fat_factor"),
-    JdbcSum("fat_factor"), JdbcMinimum("fat_factor"))
+  val analyzers = Seq[Analyzer[_, Metric[_]]](
+    Uniqueness("fat_factor"), //JdbcDistinctness("fat_factor"),
+    Sum("fat_factor")/*, JdbcMinimum("fat_factor")*/)
 
-  val analysisResult = JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
+  val analysisResult = AnalysisRunner.doAnalysisRun(table, analyzers)
 
   println(analysisResult)
   // println(JdbcAnalyzerContext.successMetricsAsJson(analysisResult, analyzers))
+}
+
+
+private[examples] object SparkBasicAnalysisExample extends App {
+
+  withSpark { session =>
+
+    val data = session.read.jdbc(jdbcUrl, "food_des", connectionProperties())
+    val analyzers = Seq[Analyzer[_, Metric[_]]](
+      Uniqueness("fat_factor"), //JdbcDistinctness("fat_factor"),
+      Sum("fat_factor") /*, JdbcMinimum("fat_factor")*/)
+
+    val analysisResult = AnalysisRunner.doAnalysisRun(data, analyzers)
+
+    println(analysisResult)
+  }
 }

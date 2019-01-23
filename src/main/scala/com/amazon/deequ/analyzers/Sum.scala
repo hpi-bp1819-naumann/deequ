@@ -18,10 +18,10 @@ package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
 import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
-import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers.conditionalSelection
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.types.{DoubleType, StructType}
-import org.apache.spark.sql.{Column, Row}
 
 case class SumState(sum: Double) extends DoubleValuedState[SumState] {
 
@@ -38,11 +38,11 @@ case class Sum(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[SumState]("Sum", column) {
 
   override def aggregationFunctionsWithSpark(): Seq[Column] = {
-    sum(conditionalSelection(column, where)).cast(DoubleType) :: Nil
+    sum(Analyzers.conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
   override def aggregationFunctionsWithJdbc(): Seq[String] = {
-    s"SUM(${conditionalSelection(column, where)})" :: Nil
+    s"SUM(${JdbcAnalyzers.conditionalSelection(column, where)})" :: Nil
   }
 
   override def fromAggregationResult(result: AggregationResult, offset: Int): Option[SumState] = {
@@ -51,7 +51,11 @@ case class Sum(column: String, where: Option[String] = None)
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
     hasColumn(column) :: isNumeric(column) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.isNumeric(column) :: Nil
   }
 }
