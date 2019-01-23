@@ -16,10 +16,9 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
 import com.amazon.deequ.analyzers.NumMatchesAndCount
-import JdbcAnalyzers._
-import Preconditions._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.Preconditions._
 
 import scala.util.matching.Regex
 
@@ -37,7 +36,7 @@ import scala.util.matching.Regex
 case class JdbcPatternMatch(column: String, pattern: Regex, where: Option[String] = None)
   extends JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("PatternMatch", column) {
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }

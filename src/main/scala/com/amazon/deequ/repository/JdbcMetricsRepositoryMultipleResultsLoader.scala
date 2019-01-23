@@ -16,13 +16,9 @@
 
 package com.amazon.deequ.repository
 
-import java.sql.Connection
-
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
 import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
 import com.amazon.deequ.metrics.Metric
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Column, DataFrame}
 
 trait JdbcMetricsRepositoryMultipleResultsLoader {
 

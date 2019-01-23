@@ -16,28 +16,36 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import com.amazon.deequ.analyzers.runners.EmptyStateException
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.metrics.DoubleMetric
 
+/**
+  * Entropy is a measure of the level of information contained in a message. Given the probability
+  * distribution over values in a column, it describes how many bits are required to identify a
+  * value.
+  */
 case class JdbcEntropy(column: String)
   extends JdbcScanShareableFrequencyBasedAnalyzer("Entropy", column :: Nil) {
 
-  override def calculateMetricValue(state: JdbcFrequenciesAndNumRows): DoubleMetric = {
-    if (state.frequencies.isEmpty) {
-      return toFailureMetric(new EmptyStateException(
-        s"Empty state for analyzer JdbcEntropy, all input values were NULL."))
+  override def aggregationFunctions(numRows: Long): Seq[String] = {
+
+    val frequency = toDouble("absolute")
+    val conditions = Some(s"$frequency != 0") :: Some(s"$column IS NOT NULL") :: Nil
+
+    s"SUM(${conditionalSelection(
+      s"-($frequency / $numRows) * ln($frequency / $numRows)", conditions)})" :: Nil
+  }
+
+  override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): DoubleMetric = {
+
+    state match {
+      case Some(theState) =>
+        if (theState.numNulls() == theState.numRows) {
+          return metricFromEmpty(this, "Entropy",
+            column, entityFrom(column :: Nil))
+        }
+      case None =>
     }
-    val numRows = state.numRows
-    val entropy = state.frequencies.values.map {
-      frequency => -(frequency.toDouble / numRows) * math.log(frequency.toDouble / numRows)
-    }.foldLeft(0.0)(_ + _)
-    toSuccessMetric(entropy)
+    super.computeMetricFrom(state)
   }
 }
-/*
-object JdbcEntropy {
-  def apply(column: String): JdbcEntropy = {
-    new JdbcEntropy(column :: Nil)
-  }
-}
-*/

@@ -44,18 +44,17 @@ object JdbcAnalyzerContext {
 
   def empty: JdbcAnalyzerContext = JdbcAnalyzerContext(Map.empty)
 
-  /*
-    def successMetricsAsDataFrame(
-                                   connection: Connection,
-                                   analyzerContext: JdbcAnalyzerContext,
-                                   forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty)
-      : DataFrame = {
+  /* def successMetricsAsDataFrame(
+                                 connection: Connection,
+                                 analyzerContext: JdbcAnalyzerContext,
+                                 forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty)
+    : DataFrame = {
 
-      val metricsList = getSimplifiedMetricOutputForSelectedAnalyzers(analyzerContext, forAnalyzers)
+    val metricsList = getSimplifiedMetricOutputForSelectedAnalyzers(analyzerContext, forAnalyzers)
 
-      import sparkSession.implicits._
+    import sparkSession.implicits._
 
-      metricsList.toDF("entity", "instance", "name", "value")
+    metricsList.toDF("entity", "instance", "name", "value")
   } */
 
   def successMetricsAsJson(analyzerContext: JdbcAnalyzerContext,

@@ -16,8 +16,6 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-
 import com.amazon.deequ.analyzers.CorrelationState
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, isNumeric}
@@ -58,16 +56,16 @@ case class JdbcCorrelation(
 
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[CorrelationState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[CorrelationState] = {
     ifNoNullsIn(result, offset, 8) { _ =>
-      val numRows = result.getDouble(6)
-      val sumFirstTimesSecond = result.getDouble(1)
-      val averageFirst = result.getDouble(2)
-      val sumSecond = result.getDouble(3)
-      val averageSecond = result.getDouble(4)
-      val sumFirst = result.getDouble(5)
-      val sumFirstSquared = result.getDouble(7)
-      val sumSecondSquared = result.getDouble(8)
+      val numRows = result.getDouble(5)
+      val sumFirstTimesSecond = result.getDouble(0)
+      val averageFirst = result.getDouble(1)
+      val sumSecond = result.getDouble(2)
+      val averageSecond = result.getDouble(3)
+      val sumFirst = result.getDouble(4)
+      val sumFirstSquared = result.getDouble(6)
+      val sumSecondSquared = result.getDouble(7)
 
       val ck = sumFirstTimesSecond - (averageSecond * sumFirst) - (averageFirst * sumSecond) +
         (numRows * averageFirst * averageSecond)

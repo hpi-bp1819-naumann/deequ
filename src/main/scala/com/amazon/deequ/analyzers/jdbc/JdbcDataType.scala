@@ -56,8 +56,11 @@ case class JdbcDataType(
     val nullPattern = """(?i)^\s*(?:null|N\/A|N\.?A\.?)\s*$"""
 
     def countOccurrencesOf(pattern: String): String = {
+      val castColumnToString =
+        s"CAST(CASE WHEN $column IS NULL THEN 'null' ELSE $column END AS TEXT)"
+
       s"COUNT(${conditionalSelection(column,
-        Some(s"(SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL") ::
+        Some(s"(SELECT regexp_matches($castColumnToString, '$pattern', '')) IS NOT NULL") ::
           where :: Nil)})"
     }
 
@@ -66,13 +69,13 @@ case class JdbcDataType(
     countOccurrencesOf(booleanPattern) :: countOccurrencesOf(nullPattern) :: s"MIN($column)" :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[DataTypeHistogram] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[DataTypeHistogram] = {
     ifNoNullsIn(result, offset, 7) { _ =>
       // column at offset + 6 contains minimal value of the column
-      val dataType = result.getMetaData.getColumnType(offset + 6) match {
-        case BIGINT | INTEGER | TINYINT | SMALLINT => DataTypeInstances.Integral
-        case BOOLEAN => DataTypeInstances.Boolean
-        case DECIMAL | DOUBLE | FLOAT | REAL | NUMERIC => DataTypeInstances.Fractional
+      val dataType = result.row(offset + 6) match {
+        case _: Integer => DataTypeInstances.Integral
+        case _: Boolean => DataTypeInstances.Boolean
+        case _: Long | Float | Double | Numeric => DataTypeInstances.Fractional
         case _ => DataTypeInstances.Unknown
       }
 

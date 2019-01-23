@@ -108,8 +108,8 @@ class JdbcVerificationRunBuilder(val data: Table) {
     * @param metricsRepository A metrics repository to store and load results associated with the
     *                          run
     */
-  def useRepository(metricsRepository: JdbcMetricsRepository)
-    : JdbcVerificationRunBuilderWithRepository = {
+  def useRepository(metricsRepository: JdbcMetricsRepository):
+  JdbcVerificationRunBuilderWithRepository = {
 
     new JdbcVerificationRunBuilderWithRepository(this, Option(metricsRepository))
   }

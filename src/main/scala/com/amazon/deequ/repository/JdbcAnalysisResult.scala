@@ -16,13 +16,10 @@
 
 package com.amazon.deequ.repository
 
-import java.sql.Connection
-
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
 import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
 import com.amazon.deequ.metrics.Metric
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.lit
 
 private[deequ] case class JdbcAnalysisResult(
     resultKey: ResultKey,
@@ -33,33 +30,34 @@ private[repository] object JdbcAnalysisResult {
 
   private val DATASET_DATE_FIELD = "dataset_date"
 
+  /**
+    * Get a AnalysisResult as DataFrame containing the success metrics
+    *
+    * @param analysisResult      The AnalysisResult to convert
+    * @param forAnalyzers Only include metrics for these Analyzers in the DataFrame
+    * @param withTags            Only include these Tags in the DataFrame
+    */
   /*
-      * Get a AnalysisResult as DataFrame containing the success metrics
-      *
-      * @param analysisResult      The AnalysisResult to convert
-      * @param forAnalyzers Only include metrics for these Analyzers in the DataFrame
-      * @param withTags            Only include these Tags in the DataFrame
-      *
-    def getSuccessMetricsAsDataFrame(
-                                      connection: Connection,
-                                      analysisResult: JdbcAnalysisResult,
-                                      forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty,
-                                      withTags: Seq[String] = Seq.empty)
-      : DataFrame = {
+  def getSuccessMetricsAsDataFrame(
+                                    connection: Connection,
+                                    analysisResult: JdbcAnalysisResult,
+                                    forAnalyzers: Seq[JdbcAnalyzer[_, Metric[_]]] = Seq.empty,
+                                    withTags: Seq[String] = Seq.empty)
+    : DataFrame = {
 
-      var analyzerContextDF = JdbcAnalyzerContext
-        .successMetricsAsDataFrame(connection, analysisResult.analyzerContext, forAnalyzers)
-        .withColumn(DATASET_DATE_FIELD, lit(analysisResult.resultKey.dataSetDate))
+    var analyzerContextDF = JdbcAnalyzerContext
+      .successMetricsAsDataFrame(connection, analysisResult.analyzerContext, forAnalyzers)
+      .withColumn(DATASET_DATE_FIELD, lit(analysisResult.resultKey.dataSetDate))
 
-      analysisResult.resultKey.tags
-        .filterKeys(tagName => withTags.isEmpty || withTags.contains(tagName))
-        .map { case (tagName, tagValue) =>
-            formatTagColumnNameInDataFrame(tagName, analyzerContextDF) -> tagValue}
-        .foreach {
-          case (key, value) => analyzerContextDF = analyzerContextDF.withColumn(key, lit(value))
-        }
+    analysisResult.resultKey.tags
+      .filterKeys(tagName => withTags.isEmpty || withTags.contains(tagName))
+      .map { case (tagName, tagValue) =>
+          formatTagColumnNameInDataFrame(tagName, analyzerContextDF) -> tagValue}
+      .foreach {
+        case (key, value) => analyzerContextDF = analyzerContextDF.withColumn(key, lit(value))
+      }
 
-      analyzerContextDF
+    analyzerContextDF
   } */
 
   /**

@@ -16,10 +16,9 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, isNumeric}
 import com.amazon.deequ.analyzers.MaxState
-import JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, isNumeric}
 
 
 case class JdbcMaximum(column: String, where: Option[String] = None)
@@ -29,7 +28,7 @@ case class JdbcMaximum(column: String, where: Option[String] = None)
     s"MAX(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[MaxState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[MaxState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MaxState(result.getDouble(offset))

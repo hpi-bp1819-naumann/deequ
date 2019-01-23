@@ -114,8 +114,8 @@ object JdbcConstraint {
 
     val histogram = JdbcHistogram(column, binningUdf, maxBins)
 
-    val constraint =
-      JdbcAnalysisBasedConstraint[JdbcFrequenciesAndNumRows, Distribution, Distribution](
+    val constraint = JdbcAnalysisBasedConstraint[JdbcFrequenciesAndNumRows,
+      Distribution, Distribution](
       histogram, assertion, hint = hint)
 
     new JdbcNamedConstraint(constraint, s"HistogramConstraint($histogram)")
@@ -498,8 +498,8 @@ object JdbcConstraint {
       }
     }
 
-    JdbcAnalysisBasedConstraint[DataTypeHistogram, Distribution, Double](JdbcDataType(column),
-      assertion, Some(valuePicker), hint)
+    JdbcAnalysisBasedConstraint[DataTypeHistogram, Distribution, Double](
+      JdbcDataType(column), assertion, Some(valuePicker), hint)
   }
 
   private[this] def ratio(keyType: DataTypeInstances.Value, distribution: Distribution): Double = {

@@ -16,9 +16,8 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
 import com.amazon.deequ.analyzers.NumMatchesAndCount
-import JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 
 /**
   * Compliance is a measure of the fraction of rows that complies with the given column constraint.
@@ -36,7 +35,7 @@ import JdbcAnalyzers._
 case class JdbcCompliance(instance: String, predicate: String, where: Option[String] = None)
   extends JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance) {
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
 
     /** check whether the table was empty or not */
     if (result.getLong(offset + 1) == 0) {

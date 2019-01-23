@@ -16,18 +16,6 @@
 
 package com.amazon.deequ.repository.fs
 
-import java.io.{BufferedInputStream, BufferedOutputStream}
-import java.sql.Connection
-import java.util.UUID.randomUUID
-
-import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzer
-import com.amazon.deequ.analyzers.runners.JdbcAnalyzerContext
-import com.amazon.deequ.metrics.Metric
-import com.amazon.deequ.repository._
-import com.google.common.io.Closeables
-import org.apache.commons.io.IOUtils
-import org.apache.hadoop.fs.{FileSystem, Path}
-
 
 /*
 
@@ -54,8 +42,8 @@ class JdbcFileSystemMetricsRepository(connection: Connection, path: String)
     val previousAnalysisResults = load().get().filter(_.resultKey != resultKey)
 
     val serializedResult = JdbcAnalysisResultSerde.serialize(
-      previousAnalysisResults ++ Seq(JdbcAnalysisResult(resultKey,
-        analyzerContextWithSuccessfulValues))
+      previousAnalysisResults ++
+      Seq(JdbcAnalysisResult(resultKey, analyzerContextWithSuccessfulValues))
     )
 
     JdbcFileSystemMetricsRepository.writeToFileOnDfs(connection, path, {
@@ -231,4 +219,4 @@ object JdbcFileSystemMetricsRepository {
     (fs, qualifiedPath)
   }
 }
- */
+*/

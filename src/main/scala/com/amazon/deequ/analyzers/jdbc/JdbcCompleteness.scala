@@ -16,15 +16,14 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
 import com.amazon.deequ.analyzers.NumMatchesAndCount
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn}
-import JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.Preconditions.hasColumn
 
 case class JdbcCompleteness(column: String, where: Option[String] = None) extends
   JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("Completeness", column) {
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
 
     /** check whether the table was empty or not */
     if (result.getLong(offset + 1) == 0) {

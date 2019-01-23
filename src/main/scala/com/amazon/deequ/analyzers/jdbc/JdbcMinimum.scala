@@ -16,14 +16,9 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-
-import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
 import com.amazon.deequ.analyzers.MinState
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable, isNumeric, hasNoInjection}
-import com.amazon.deequ.analyzers.runners.EmptyStateException
-import com.amazon.deequ.metrics.{DoubleMetric, Entity}
-import JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, isNumeric}
 
 
 case class JdbcMinimum(column: String, where: Option[String] = None)
@@ -33,7 +28,7 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
     s"MIN(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[MinState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[MinState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MinState(result.getDouble(offset))

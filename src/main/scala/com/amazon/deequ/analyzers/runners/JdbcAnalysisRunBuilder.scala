@@ -20,7 +20,7 @@ import java.sql.Connection
 
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, Table}
 import com.amazon.deequ.metrics.Metric
-import com.amazon.deequ.repository.{JdbcMetricsRepository, MetricsRepository, ResultKey}
+import com.amazon.deequ.repository.{JdbcMetricsRepository, ResultKey}
 
 /** A class to build an AnalysisRun using a fluent API */
 class JdbcAnalysisRunBuilder(val table: Table) {

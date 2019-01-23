@@ -16,13 +16,9 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-
-import com.amazon.deequ.analyzers.Analyzers.{metricFromFailure, metricFromValue}
 import com.amazon.deequ.analyzers.NumMatches
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasTable, hasNoInjection}
-import com.amazon.deequ.analyzers.runners.EmptyStateException
-import com.amazon.deequ.metrics.{DoubleMetric, Entity}
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasNoInjection, hasTable}
+import com.amazon.deequ.metrics.Entity
 
 case class JdbcSize(where: Option[String] = None)
   extends JdbcStandardScanShareableAnalyzer[NumMatches]("Size", "*", Entity.Dataset) {
@@ -35,7 +31,7 @@ case class JdbcSize(where: Option[String] = None)
     JdbcAnalyzers.conditionalCount(where) :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[NumMatches] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatches] = {
     JdbcAnalyzers.ifNoNullsIn(result, offset) { _ =>
       NumMatches(result.getLong(offset))
     }

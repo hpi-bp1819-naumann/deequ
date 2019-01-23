@@ -16,8 +16,6 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.ResultSet
-
 import com.amazon.deequ.analyzers.SumState
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, isNumeric}
@@ -30,7 +28,7 @@ case class JdbcSum(column: String, where: Option[String] = None)
     s"SUM(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromAggregationResult(result: ResultSet, offset: Int): Option[SumState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[SumState] = {
     ifNoNullsIn(result, offset) { _ =>
       SumState(result.getDouble(offset))
     }
