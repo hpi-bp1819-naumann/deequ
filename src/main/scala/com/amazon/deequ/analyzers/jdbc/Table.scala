@@ -16,9 +16,25 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import java.io.FileReader
 import java.sql.Connection
+
+import scala.io.Source
+import org.postgresql.copy.CopyManager
+import org.postgresql.core.BaseConnection
 
 case class Table(
   name: String,
-  jdbcConnection: Connection
-)
+  jdbcConnection: Connection) {
+
+  def this(name: String, jdbcConnection: Connection, csvFile: String) = {
+    this(name, jdbcConnection)
+    insertCSVToTable(csvFile)
+  }
+
+  def insertCSVToTable(csvFile: String) : Unit = {
+    val copMan = new CopyManager(this.jdbcConnection.asInstanceOf[BaseConnection])
+    val fileReader = new FileReader(csvFile)
+    copMan.copyIn("COPY " + this.name + " FROM STDIN DELIMITER ';' CSV HEADER", fileReader)
+    }
+}
