@@ -17,6 +17,7 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
+import com.amazon.deequ.analyzers.jdbc.Table
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
 import org.apache.spark.sql.functions._
@@ -61,6 +62,7 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
     * @return
     */
   def computeStateFrom(data: DataFrame): Option[S]
+  def computeStateFrom(data: Table): Option[S]
 
   /**
     * Compute the metric from the state (sufficient statistics)
@@ -159,21 +161,28 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
 trait ScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends Analyzer[S, M] {
 
   /** Defines the aggregations to compute on the data */
-  private[deequ] def aggregationFunctions(): Seq[Column]
+  private[deequ] def aggregationFunctionsWithSpark(): Seq[Column]
+  private[deequ] def aggregationFunctionsWithJdbc(): Seq[String]
 
   /** Computes the state from the result of the aggregation functions */
-  private[deequ] def fromAggregationResult(result: Row, offset: Int): Option[S]
+  private[deequ] def fromAggregationResult(result: AggregationResult, offset: Int): Option[S]
 
   /** Runs aggregation functions directly, without scan sharing */
   override def computeStateFrom(data: DataFrame): Option[S] = {
-    val aggregations = aggregationFunctions()
+    val aggregations = aggregationFunctionsWithSpark()
     val result = data.agg(aggregations.head, aggregations.tail: _*).collect().head
-    fromAggregationResult(result, 0)
+    fromAggregationResult(AggregationResult.from(result), 0)
+  }
+  override def computeStateFrom(data: Table): Option[S] = {
+    val aggregations = aggregationFunctionsWithJdbc()
+    val result = data.executeAggregations(aggregations)
+    val state = fromAggregationResult(result, 0)
+    state
   }
 
   /** Produces a metric from the aggregation result */
   private[deequ] def metricFromAggregationResult(
-      result: Row,
+      result: AggregationResult,
       offset: Int,
       aggregateWith: Option[StateLoader] = None,
       saveStatesWith: Option[StatePersister] = None)
@@ -241,7 +250,7 @@ abstract class PredicateMatchingAnalyzer(
     where: Option[String])
   extends StandardScanShareableAnalyzer[NumMatchesAndCount](name, instance) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[NumMatchesAndCount] = {
 
     if (result.isNullAt(offset) || result.isNullAt(offset + 1)) {
       None
@@ -251,7 +260,7 @@ abstract class PredicateMatchingAnalyzer(
     }
   }
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
 
     val selection = Analyzers.conditionalSelection(predicate, where)
 
@@ -363,7 +372,7 @@ private[deequ] object Analyzers {
 
   /** Tests whether the result columns from offset to offset + howMany are non-null */
   def ifNoNullsIn[S <: State[_]](
-      result: Row,
+      result: AggregationResult,
       offset: Int,
       howMany: Int = 1)
       (func: Unit => S)

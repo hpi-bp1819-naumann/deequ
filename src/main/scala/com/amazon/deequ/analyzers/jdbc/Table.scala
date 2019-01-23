@@ -19,6 +19,8 @@ package com.amazon.deequ.analyzers.jdbc
 import java.sql.{Connection, DriverManager, ResultSet}
 import java.util.Properties
 
+import com.amazon.deequ.analyzers.AggregationResult
+
 import scala.collection.mutable
 
 case class Table (name: String,
@@ -62,9 +64,9 @@ case class Table (name: String,
     * @param aggregations Sequence of aggregation functions
     * @return Returns ResultSet of the query
     */
-  def executeAggregations(aggregations: Seq[String]): JdbcRow = {
+  def executeAggregations(aggregations: Seq[String]): AggregationResult = {
 
-    withJdbc[JdbcRow] { connection: Connection =>
+    withJdbc[AggregationResult] { connection: Connection =>
 
       val query =
         s"""
@@ -77,7 +79,7 @@ case class Table (name: String,
       val result = connection.createStatement().executeQuery(query)
       // TODO: Test return value of next() and throw exception
       result.next()
-      JdbcRow.from(result)
+      AggregationResult.from(result)
     }
   }
 
@@ -179,31 +181,8 @@ object Table {
   }
 }
 
-
-case class JdbcRow(row: Seq[Any]) {
-
-  def getLong(col: Int): Long = {
-
-    row(col) match {
-      case number: Number => number.longValue()
-      case null => 0
-      case _ => throw new IllegalArgumentException("No numeric type")
-    }
-  }
-
-  def getDouble(col: Int): Double = {
-
-    row(col) match {
-      case number: Number => number.doubleValue()
-      case null => 0.0
-      case _ => throw new IllegalArgumentException("No numeric type")
-    }
-  }
-
-  def getObject(col: Int): Any = {
-    row(col)
-  }
-}
+/*
+case class JdbcRow(result: Seq[Any]) extends AggregationResult(result)
 
 object JdbcRow {
 
@@ -218,3 +197,4 @@ object JdbcRow {
     JdbcRow(row)
   }
 }
+*/

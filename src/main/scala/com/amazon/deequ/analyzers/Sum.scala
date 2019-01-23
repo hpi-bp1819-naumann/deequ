@@ -18,6 +18,7 @@ package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
 import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers.conditionalSelection
 import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.types.{DoubleType, StructType}
 import org.apache.spark.sql.{Column, Row}
@@ -36,11 +37,15 @@ case class SumState(sum: Double) extends DoubleValuedState[SumState] {
 case class Sum(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[SumState]("Sum", column) {
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
     sum(conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[SumState] = {
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    s"SUM(${conditionalSelection(column, where)})" :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[SumState] = {
     ifNoNullsIn(result, offset) { _ =>
       SumState(result.getDouble(offset))
     }
