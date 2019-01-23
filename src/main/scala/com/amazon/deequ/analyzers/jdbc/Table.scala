@@ -29,6 +29,7 @@ case class Table(
 
   def this(name: String, jdbcConnection: Connection, csvFile: String) = {
     this(name, jdbcConnection)
+    createTableFromCSV(csvFile)
     insertCSVToTable(csvFile)
   }
 
@@ -36,5 +37,20 @@ case class Table(
     val copMan = new CopyManager(this.jdbcConnection.asInstanceOf[BaseConnection])
     val fileReader = new FileReader(csvFile)
     copMan.copyIn("COPY " + this.name + " FROM STDIN DELIMITER ';' CSV HEADER", fileReader)
-    }
+  }
+
+  def createTableFromCSV(csvFile: String) : Unit = {
+    val src = Source.fromFile(csvFile)
+    val columnString = src.getLines().next().split(";").map(head => head + " text").mkString(",")
+
+    val queryString = s"""
+                         |CREATE TABLE IF NOT EXISTS
+                         | ${this.name}
+                         | ($columnString)
+      """.stripMargin
+
+    val statement = this.jdbcConnection.prepareStatement(queryString)
+    statement.execute()
+  }
+
 }
