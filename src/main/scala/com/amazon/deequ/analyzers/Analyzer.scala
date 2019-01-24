@@ -17,12 +17,12 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.jdbc.Table
+import com.amazon.deequ.analyzers.jdbc.{JdbcPreconditions, Table}
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Column, DataFrame, Row}
+import org.apache.spark.sql.{Column, DataFrame}
 
 import scala.language.existentials
 import scala.util.{Failure, Success}
@@ -75,8 +75,12 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
     * A set of assertions that must hold on the schema of the data frame
     * @return
     */
-  def preconditions: Seq[StructType => Unit] = {
+  def preconditionsWithSpark: Seq[StructType => Unit] = {
     Seq.empty
+  }
+
+  def preconditionsWithJdbc: Seq[Table => Unit] = {
+    JdbcPreconditions.hasTable() :: Nil
   }
 
   /**
@@ -88,19 +92,56 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
     * @return Returns failure metric in case preconditions fail.
     */
   def calculate(
+       data: Any,
+       aggregateWith: Option[StateLoader] = None,
+       saveStatesWith: Option[StatePersister] = None)
+    : M = {
+
+    data match {
+      case df: DataFrame => calculateWithSpark(df, aggregateWith, saveStatesWith)
+      case tbl: Table => calculateWithJdbc(tbl, aggregateWith, saveStatesWith)
+
+      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+    }
+  }
+
+  def calculateWithSpark(
       data: DataFrame,
       aggregateWith: Option[StateLoader] = None,
       saveStatesWith: Option[StatePersister] = None)
     : M = {
 
     try {
-      preconditions.foreach { condition => condition(data.schema) }
+      preconditionsWithSpark.foreach { condition => condition(data.schema) }
 
       val state = computeStateFrom(data)
 
       calculateMetric(state, aggregateWith, saveStatesWith)
     } catch {
       case error: Exception => toFailureMetric(error)
+    }
+  }
+
+  def calculateWithJdbc(
+                 data: Table,
+                 aggregateWith: Option[StateLoader] = None,
+                 saveStatesWith: Option[StatePersister] = None)
+  : M = {
+
+    try {
+      validatePreconditions(data)
+      val state = computeStateFrom(data)
+      calculateMetric(state, aggregateWith, saveStatesWith)
+    } catch {
+      case error: Exception => toFailureMetric(error)
+    }
+  }
+
+  // TODO: This function is not defined in Analyzer.scala
+  def validatePreconditions(data: Table): Unit = {
+    val exceptionOption = JdbcPreconditions.findFirstFailing(data, this.preconditionsWithJdbc)
+    if (exceptionOption.nonEmpty) {
+      throw exceptionOption.get
     }
   }
 
@@ -173,6 +214,7 @@ trait ScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends Analyzer[S, 
     val result = data.agg(aggregations.head, aggregations.tail: _*).collect().head
     fromAggregationResult(AggregationResult.from(result), 0)
   }
+
   override def computeStateFrom(data: Table): Option[S] = {
     val aggregations = aggregationFunctionsWithJdbc()
     val result = data.executeAggregations(aggregations)
@@ -215,11 +257,19 @@ abstract class StandardScanShareableAnalyzer[S <: DoubleValuedState[_]](
     metricFromFailure(exception, name, instance, entity)
   }
 
-  override def preconditions: Seq[StructType => Unit] = {
-    additionalPreconditions() ++ super.preconditions
+  override def preconditionsWithSpark: Seq[StructType => Unit] = {
+    super.preconditionsWithSpark ++ additionalPreconditionsWithSpark()
   }
 
-  protected def additionalPreconditions(): Seq[StructType => Unit] = {
+  override def preconditionsWithJdbc: Seq[Table => Unit] = {
+    super.preconditionsWithJdbc ++ additionalPreconditionsWithJdbc()
+  }
+
+  protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Seq.empty
+  }
+
+  protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
     Seq.empty
   }
 }
@@ -275,8 +325,12 @@ abstract class GroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends Analyzer
   def groupingColumns(): Seq[String]
 
   /** Ensure that the grouping columns exist in the data */
-  override def preconditions: Seq[StructType => Unit] = {
-    groupingColumns().map { name => Preconditions.hasColumn(name) } ++ super.preconditions
+  override def preconditionsWithSpark: Seq[StructType => Unit] = {
+    super.preconditionsWithSpark ++ groupingColumns().map { name => Preconditions.hasColumn(name) }
+  }
+
+  override def preconditionsWithJdbc: Seq[Table => Unit] = {
+    super.preconditionsWithJdbc ++ groupingColumns().map { name => JdbcPreconditions.hasColumn(name) }
   }
 }
 

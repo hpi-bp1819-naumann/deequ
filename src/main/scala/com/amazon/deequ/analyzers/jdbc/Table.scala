@@ -46,7 +46,7 @@ case class Table (name: String,
   }
 
 
-  private[jdbc] def withJdbc[T](func: Connection => T): T = {
+  private[analyzers] def withJdbc[T](func: Connection => T): T = {
 
     val connection = createConnection()
 
@@ -84,7 +84,7 @@ case class Table (name: String,
   }
 
 
-  private[jdbc] def columns(): mutable.LinkedHashMap[String, String] = {
+  private[analyzers] def columns(): mutable.LinkedHashMap[String, String] = {
 
 
     withJdbc[mutable.LinkedHashMap[String, String]] { connection: Connection =>
