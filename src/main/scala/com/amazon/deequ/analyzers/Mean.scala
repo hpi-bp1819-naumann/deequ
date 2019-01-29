@@ -17,10 +17,10 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{count, sum}
 import org.apache.spark.sql.types.{DoubleType, LongType, StructType}
-import org.apache.spark.sql.{Column, Row}
 
 case class MeanState(sum: Double, count: Long) extends DoubleValuedState[MeanState] {
 
@@ -36,19 +36,28 @@ case class MeanState(sum: Double, count: Long) extends DoubleValuedState[MeanSta
 case class Mean(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[MeanState]("Mean", column) {
 
-  override def aggregationFunctions(): Seq[Column] = {
-    sum(conditionalSelection(column, where)).cast(DoubleType) ::
-      count(conditionalSelection(column, where)).cast(LongType) :: Nil
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
+    sum(Analyzers.conditionalSelection(column, where)).cast(DoubleType) ::
+      count(Analyzers.conditionalSelection(column, where)).cast(LongType) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[MeanState] = {
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    s"SUM(${JdbcAnalyzers.conditionalSelection(column, where)})" ::
+      s"COUNT(${JdbcAnalyzers.conditionalSelection(column, where)})" :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[MeanState] = {
 
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       MeanState(result.getDouble(offset), result.getLong(offset + 1))
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Preconditions.hasColumn(column) :: Preconditions.isNumeric(column) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.isNumeric(column) :: Nil
   }
 }

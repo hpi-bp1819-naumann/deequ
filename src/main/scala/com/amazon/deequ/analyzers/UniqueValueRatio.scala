@@ -17,6 +17,7 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers.COUNT_COL
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers.{conditionalCount, conditionalSelection}
 import com.amazon.deequ.metrics.DoubleMetric
 import org.apache.spark.sql.functions.{col, count, lit, sum}
 import org.apache.spark.sql.types.DoubleType
@@ -25,11 +26,19 @@ import org.apache.spark.sql.{Column, Row}
 case class UniqueValueRatio(columns: Seq[String])
   extends ScanShareableFrequencyBasedAnalyzer("UniqueValueRatio", columns) {
 
-  override def aggregationFunctions(numRows: Long): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(numRows: Long): Seq[Column] = {
     sum(col(COUNT_COL).equalTo(lit(1)).cast(DoubleType)) :: count("*") :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): DoubleMetric = {
+  override def aggregationFunctionsWithJdbc(numRows: Long): Seq[String] = {
+    val noNullValue = Some(s"${columns.head} IS NOT NULL")
+    val conditions = noNullValue :: Some("absolute = 1") :: Nil
+
+    s"SUM(${conditionalSelection("1", conditions)})" ::
+      conditionalCount(noNullValue) :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): DoubleMetric = {
     val numUniqueValues = result.getDouble(offset)
     val numDistinctValues = result.getLong(offset + 1).toDouble
 

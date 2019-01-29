@@ -17,6 +17,8 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers.{conditionalCount, conditionalSelection}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.{Column, Row}
@@ -37,20 +39,35 @@ import scala.util.matching.Regex
 case class PatternMatch(column: String, pattern: Regex, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[NumMatchesAndCount]("PatternMatch", column) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: AggregationResult, offset: Int)
+  : Option[NumMatchesAndCount] = {
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }
   }
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
 
     val expression = when(regexp_extract(col(column), pattern.toString(), 0) =!= lit(""), 1)
       .otherwise(0)
 
-    val summation = sum(conditionalSelection(expression, where).cast(IntegerType))
+    val summation = sum(Analyzers.conditionalSelection(expression, where).cast(IntegerType))
 
-    summation :: conditionalCount(where) :: Nil
+    summation :: Analyzers.conditionalCount(where) :: Nil
+  }
+
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+
+    val summation = s"COUNT(${conditionalSelection(column,
+      Some(s"(SELECT regexp_matches(CAST($column AS text), '$pattern', '')) IS NOT NULL")
+        :: where :: Nil)})"
+
+    summation :: JdbcAnalyzers.conditionalCount(where) :: Nil
+  }
+
+  override def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.hasNoInjection(where) ::
+      JdbcPreconditions.hasNoInjection(Some(pattern.toString())) :: Nil
   }
 }
 

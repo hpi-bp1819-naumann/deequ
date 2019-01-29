@@ -17,10 +17,10 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.min
 import org.apache.spark.sql.types.{DoubleType, StructType}
-import org.apache.spark.sql.{Column, Row}
 
 case class MinState(minValue: Double) extends DoubleValuedState[MinState] {
 
@@ -36,18 +36,27 @@ case class MinState(minValue: Double) extends DoubleValuedState[MinState] {
 case class Minimum(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[MinState]("Minimum", column) {
 
-  override def aggregationFunctions(): Seq[Column] = {
-    min(conditionalSelection(column, where)).cast(DoubleType) :: Nil
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
+    min(Analyzers.conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[MinState] = {
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    s"MIN(${JdbcAnalyzers.conditionalSelection(column, where)})" :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[MinState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MinState(result.getDouble(offset))
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Preconditions.hasColumn(column) :: Preconditions.isNumeric(column) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.isNumeric(column) ::
+      JdbcPreconditions.hasNoInjection(where) :: Nil
   }
 }
