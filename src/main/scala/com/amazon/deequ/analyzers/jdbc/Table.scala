@@ -29,8 +29,13 @@ case class Table(
 
   def this(name: String, jdbcConnection: Connection, csvFile: String) = {
     this(name, jdbcConnection)
-    createTableFromCSV(csvFile)
-    insertCSVToTable(csvFile)
+    try {
+      createTableFromCSV(csvFile)
+      insertCSVToTable(csvFile)
+    } catch {
+      case e: Exception => Some(e)
+    }
+
   }
 
   def insertCSVToTable(csvFile: String) : Unit = {
