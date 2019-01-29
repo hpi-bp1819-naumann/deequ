@@ -16,31 +16,42 @@
 
 package com.amazon.deequ.analyzers
 
-import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.Preconditions.hasColumn
+import Analyzers.ifNoNullsIn
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.types.{IntegerType, StructType}
-import org.apache.spark.sql.{Column, Row}
 
 /** Completeness is the fraction of non-null values in a column of a DataFrame. */
 case class Completeness(column: String, where: Option[String] = None) extends
   StandardScanShareableAnalyzer[NumMatchesAndCount]("Completeness", column) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[NumMatchesAndCount] = {
 
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }
   }
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
 
-    val summation = sum(conditionalSelection(column, where).isNotNull.cast(IntegerType))
+    val summation = sum(Analyzers.conditionalSelection(column, where).isNotNull.cast(IntegerType))
 
-    summation :: conditionalCount(where) :: Nil
+    summation :: Analyzers.conditionalCount(where) :: Nil
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
-    hasColumn(column) :: Nil
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+
+    val summation = s"COUNT(${JdbcAnalyzers.conditionalSelectionNotNull(column, where)})"
+
+    summation :: JdbcAnalyzers.conditionalCount(where) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Preconditions.hasColumn(column) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: Nil
   }
 }

@@ -16,10 +16,11 @@
 
 package com.amazon.deequ.analyzers
 
-import com.amazon.deequ.analyzers.Analyzers._
+import com.amazon.deequ.analyzers.Analyzers.ifNoNullsIn
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.{Column, Row}
+import org.apache.spark.sql.Column
 
 /**
   * Compliance is a measure of the fraction of rows that complies with the given column constraint.
@@ -37,17 +38,24 @@ import org.apache.spark.sql.{Column, Row}
 case class Compliance(instance: String, predicate: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[NumMatchesAndCount] = {
 
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }
   }
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
 
-    val summation = sum(conditionalSelection(expr(predicate), where).cast(IntegerType))
+    val summation = sum(Analyzers.conditionalSelection(expr(predicate), where).cast(IntegerType))
 
-    summation :: conditionalCount(where) :: Nil
+    summation :: Analyzers.conditionalCount(where) :: Nil
+  }
+
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+
+    val summation = s"COUNT(${JdbcAnalyzers.conditionalSelection("1", Some(predicate) :: where :: Nil)})"
+
+    summation :: JdbcAnalyzers.conditionalCount(where) :: Nil
   }
 }
