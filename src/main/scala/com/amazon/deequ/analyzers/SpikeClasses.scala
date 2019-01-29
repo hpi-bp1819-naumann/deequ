@@ -2,6 +2,7 @@ package com.amazon.deequ.analyzers
 
 import java.sql.ResultSet
 
+import org.apache.commons.lang3.SerializationUtils
 import org.apache.spark.sql.Row
 
 case class AggregationResult(row: Seq[Any]) {
@@ -31,6 +32,9 @@ case class AggregationResult(row: Seq[Any]) {
   def isNullAt(col: Int): Boolean = {
     row(col) == null
   }
+
+  def getAs[T](col: Int): T = row(col).asInstanceOf[T]
+  
 }
 
 object AggregationResult {

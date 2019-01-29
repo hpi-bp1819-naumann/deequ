@@ -17,6 +17,7 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers.COUNT_COL
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{col, sum, udf}
 
@@ -28,7 +29,7 @@ import org.apache.spark.sql.functions.{col, sum, udf}
 case class Entropy(column: String)
   extends ScanShareableFrequencyBasedAnalyzer("Entropy", column :: Nil) {
 
-  override def aggregationFunctions(numRows: Long): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(numRows: Long): Seq[Column] = {
     val summands = udf { (count: Double) =>
       if (count == 0.0) {
         0.0
@@ -38,5 +39,14 @@ case class Entropy(column: String)
     }
 
     sum(summands(col(COUNT_COL))) :: Nil
+  }
+
+  override def aggregationFunctionsWithJdbc(numRows: Long): Seq[String] = {
+
+    val frequency = JdbcAnalyzers.toDouble(COUNT_COL)
+    val conditions = Some(s"$frequency != 0") :: Some(s"$column IS NOT NULL") :: Nil
+
+    s"SUM(${JdbcAnalyzers.conditionalSelection(
+      s"-($frequency / $numRows) * ln($frequency / $numRows)", conditions)})" :: Nil
   }
 }

@@ -18,13 +18,13 @@ package com.amazon.deequ.analyzers
 
 import java.nio.ByteBuffer
 
-import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.Preconditions.hasColumn
+import com.amazon.deequ.analyzers.Analyzers.{emptyStateException, ifNoNullsIn}
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
 import com.amazon.deequ.analyzers.runners.MetricCalculationException
 import com.amazon.deequ.metrics.{Distribution, DistributionValue, HistogramMetric}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DeequFunctions.stateful_datatype
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Column, Row}
 
 import scala.util.{Failure, Success}
 
@@ -154,13 +154,56 @@ case class DataType(
     where: Option[String] = None)
   extends ScanShareableAnalyzer[DataTypeHistogram, HistogramMetric] {
 
-  override def aggregationFunctions(): Seq[Column] = {
-    stateful_datatype(conditionalSelection(column, where)) :: Nil
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
+    stateful_datatype(Analyzers.conditionalSelection(column, where)) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[DataTypeHistogram] = {
-    ifNoNullsIn(result, offset) { _ =>
-      DataTypeHistogram.fromBytes(result.getAs[Array[Byte]](offset))
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    /*
+     * Scan the column and, for each supported data type (unknown, integral, fractional,
+     * boolean, string), aggregate the number of values that could be instances of the
+     * respective data type. Each value is assigned to exactly one data type (i.e., data
+     * types are mutually exclusive).
+     * A value's data type is assumed to be unknown, if it is a NULL-value or one of the
+     * following strings: n.a. | null | n/a.
+     * A value is integral if it contains only digits without any fractional part. If the
+     * value contains only a single digit, it must not be 0 or 1, because those two values
+     * are assigned to boolean.
+     * A value is fractional if it contains only digits and a fractional part separated by
+     * a decimal separator.
+     * A value is boolean if it is equal to one of the following constants: 1 | 0 | true |
+     * false | t | f | y | n | yes | no | on | off.
+    */
+    // use triple quotes to avoid special escaping
+    val integerPattern = """^\s*(?:-|\+)?(?:-1|[2-9]|\d{2,})\s*$"""
+    val fractionPattern = """^\s*(?:-|\+)?\d+\.\d+\s*$"""
+    val booleanPattern = """(?i)^\s*(?:1|0|true|false|t|f|y|n|yes|no|on|off)\s*$"""
+    val nullPattern = """(?i)^\s*(?:null|N\/A|N\.?A\.?)\s*$"""
+
+    def countOccurrencesOf(pattern: String): String = {
+      val castColumnToString =
+        s"CASE WHEN $column IS NULL THEN 'null' ELSE CAST($column AS TEXT) END"
+
+      s"COUNT(${JdbcAnalyzers.conditionalSelection(column,
+        Some(s"(SELECT regexp_matches($castColumnToString, '$pattern', '')) IS NOT NULL") ::
+          where :: Nil)})"
+    }
+
+    s"COUNT(${JdbcAnalyzers.conditionalSelection(column, where)})" :: JdbcAnalyzers.conditionalCount(where) ::
+      countOccurrencesOf(integerPattern) :: countOccurrencesOf(fractionPattern) ::
+      countOccurrencesOf(booleanPattern) :: countOccurrencesOf(nullPattern) ::
+      s"MIN($column)" :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[DataTypeHistogram] = {
+
+    if (result.row.size == 1) {
+      ifNoNullsIn(result, offset) { _ =>
+        DataTypeHistogram.fromBytes(result.getAs[Array[Byte]](offset))
+      }
+    }
+    else {
+      JdbcDataType.fromAggregationResult(result, offset)
     }
   }
 
@@ -177,7 +220,55 @@ case class DataType(
     HistogramMetric(column, Failure(MetricCalculationException.wrapIfNecessary(exception)))
   }
 
-  override def preconditions: Seq[StructType => Unit] = {
-    hasColumn(column) +: super.preconditions
+  override def preconditionsWithSpark: Seq[StructType => Unit] = {
+    super.preconditionsWithSpark :+ Preconditions.hasColumn(column)
+  }
+
+  override def preconditionsWithJdbc: Seq[Table => Unit] = {
+    super.preconditionsWithJdbc :+
+      JdbcPreconditions.hasColumn(column) :+ JdbcPreconditions.hasNoInjection(where)
+  }
+}
+
+private object JdbcDataType {
+
+  def fromAggregationResult(result: AggregationResult, offset: Int): Option[DataTypeHistogram] = {
+    ifNoNullsIn(result, offset, 7) { _ =>
+      // column at offset + 6 contains minimal value of the column
+      val dataType = result.row(offset + 6) match {
+        case _: Integer => DataTypeInstances.Integral
+        case _: Boolean => DataTypeInstances.Boolean
+        case _: Long | Float | Double | Numeric => DataTypeInstances.Fractional
+        case _ => DataTypeInstances.Unknown
+      }
+
+      if (dataType != DataTypeInstances.Unknown) {
+        val numNotNulls = result.getLong(offset)
+        val numRows = result.getLong(offset + 1)
+        DataTypeHistogram(
+          numNull = numRows - numNotNulls,
+          numFractional = if (dataType == DataTypeInstances.Fractional) numNotNulls else 0,
+          numIntegral = if (dataType == DataTypeInstances.Integral) numNotNulls else 0,
+          numBoolean = if (dataType == DataTypeInstances.Boolean) numNotNulls else 0,
+          numString = 0
+        )
+      } else {
+        val numNotNulls = result.getLong(offset)
+        val numRows = result.getLong(offset + 1)
+        val numIntegers = result.getLong(offset + 2)
+        val numFractions = result.getLong(offset + 3)
+        val numBooleans = result.getLong(offset + 4)
+        val numNulls = result.getLong(offset + 5)
+
+        DataTypeHistogram(
+          numNull = numNulls + (numRows - numNotNulls),
+          numFractional = numFractions,
+          numIntegral = numIntegers,
+          numBoolean = numBooleans,
+          numString = numRows - (numRows - numNotNulls) - numBooleans - numIntegers -
+            numFractions - numNulls
+        )
+      }
+    }
   }
 }

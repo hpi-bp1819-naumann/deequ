@@ -18,9 +18,9 @@ package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers.ifNoNullsIn
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.Column
 
 /**
   * Compliance is a measure of the fraction of rows that complies with the given column constraint.

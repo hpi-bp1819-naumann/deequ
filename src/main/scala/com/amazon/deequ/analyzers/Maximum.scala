@@ -17,10 +17,10 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
-import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.max
 import org.apache.spark.sql.types.{DoubleType, StructType}
-import org.apache.spark.sql.{Column, Row}
 
 case class MaxState(maxValue: Double) extends DoubleValuedState[MaxState] {
 
@@ -36,18 +36,26 @@ case class MaxState(maxValue: Double) extends DoubleValuedState[MaxState] {
 case class Maximum(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[MaxState]("Maximum", column) {
 
-  override def aggregationFunctions(): Seq[Column] = {
-    max(conditionalSelection(column, where)).cast(DoubleType) :: Nil
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
+    max(Analyzers.conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[MaxState] = {
+  override def aggregationFunctionsWithJdbc(): Seq[String] = {
+    s"MAX(${JdbcAnalyzers.conditionalSelection(column, where)})" :: Nil
+  }
+
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[MaxState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MaxState(result.getDouble(offset))
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Preconditions.hasColumn(column) :: Preconditions.isNumeric(column) :: Nil
+  }
+
+  override protected def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.isNumeric(column) :: Nil
   }
 }

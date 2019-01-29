@@ -1,8 +1,8 @@
 package com.amazon.deequ.analyzers.jdbc.examples
 
 import com.amazon.deequ.analyzers.Completeness
-import com.amazon.deequ.analyzers.jdbc.Table
 import com.amazon.deequ.analyzers.jdbc.JdbcUtils._
+import com.amazon.deequ.analyzers.jdbc.Table
 
 object CompletenessWithJdbc extends App {
 

@@ -8,7 +8,7 @@ object PatternMatchWithJdbc extends App {
 
   withJdbc { connection =>
 
-    val table = Table("food_des", connection)
+    val table = Table("data_src", connection)
     val patternMatchOfAuthors = PatternMatch("authors",
       raw"(?i)association|administration|laboratory".r).calculate(table)
 

@@ -16,7 +16,7 @@
 
 package com.amazon.deequ.analyzers
 
-import Analyzers.ifNoNullsIn
+import com.amazon.deequ.analyzers.Analyzers.ifNoNullsIn
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.sum

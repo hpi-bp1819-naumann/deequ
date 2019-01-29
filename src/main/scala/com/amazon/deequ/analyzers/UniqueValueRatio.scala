@@ -32,7 +32,7 @@ case class UniqueValueRatio(columns: Seq[String])
 
   override def aggregationFunctionsWithJdbc(numRows: Long): Seq[String] = {
     val noNullValue = Some(s"${columns.head} IS NOT NULL")
-    val conditions = noNullValue :: Some("absolute = 1") :: Nil
+    val conditions = noNullValue :: Some(s"$COUNT_COL = 1") :: Nil
 
     s"SUM(${conditionalSelection("1", conditions)})" ::
       conditionalCount(noNullValue) :: Nil
