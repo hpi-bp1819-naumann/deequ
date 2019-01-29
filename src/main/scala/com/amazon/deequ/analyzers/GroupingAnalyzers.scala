@@ -115,108 +115,30 @@ object FrequencyBasedAnalyzer {
                           numRows: Option[Long] = None)
   : FrequenciesAndNumRowsWithJdbc = {
 
-    val defaultTable = JdbcFrequencyBasedAnalyzerUtils.newDefaultTable()
+    val connection = table.jdbcConnection
+    val frequenciesTable = Table(JdbcFrequencyBasedAnalyzerUtils.uniqueTableName(), connection)
 
-    //TODO
-/*
-    if (table.jdbcUrl == defaultTable.jdbcUrl) {
-      return computeFrequenciesInSourceDb(table, groupingColumns, numRows, defaultTable)
-    }*/
+    val oneOfGroupingColumnsNull = groupingColumns.map(col => col + " IS NULL").mkString(" OR ")
+    def caseOneColumnIsNull(col: String) = {
+      s"(CASE WHEN $oneOfGroupingColumnsNull THEN NULL ELSE $col END)"
+    }
 
-    var cols = mutable.LinkedHashMap[String, String]()
-    var result: ResultSet = null
+    val selectColumns = groupingColumns.map(col =>
+      s"${caseOneColumnIsNull(col)} AS $col").mkString(", ")
+    val groupByColumns = groupingColumns.map(col => caseOneColumnIsNull(col)).mkString(", ")
 
-    table.withJdbc { connection: Connection =>
-
-      val columns = groupingColumns.mkString(", ")
-      val query =
-        s"""
-           | SELECT $columns, COUNT(*) AS absolute
-           |    FROM ${table.name}
-           |    GROUP BY $columns
-          """.stripMargin
-
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
-
-      result = statement.executeQuery()
-
-      for (col <- groupingColumns) {
-        cols(col) = "TEXT"
-      }
-      cols("absolute") = "BIGINT"
-
-      val targetTable = Table.create(defaultTable, cols)
-
-
-      /**
-        *
-        * @param connection used to write frequencies into targetTable
-        * @param result     grouped frequencies
-        * @param total      overall number of rows
-        * @param numNulls   number of rows with at least one column with a null value
-        * @return (total, numNulls)
-        */
-      def convertResultSet(targetConnection: Connection,
-                           result: ResultSet,
-                           total: Long, numNulls: Long): (Long, Long) = {
-
-        if (result.next()) {
-          var columnValues = Seq[String]()
-          val absolute = result.getLong("absolute")
-
-          // only make a map entry if the value is defined for all columns
-          for (i <- 1 to groupingColumns.size) {
-            val columnValue = Option(result.getObject(i))
-            columnValue match {
-              case Some(theColumnValue) =>
-                columnValues = columnValues :+ theColumnValue.toString
-              case None =>
-                return convertResultSet(targetConnection, result,
-                  total + absolute, numNulls + absolute)
-            }
-          }
-
-          val query =
-            s"""
-               | INSERT INTO
-               |  ${targetTable.name} (
-               |    ${cols.keys.toSeq.mkString(", ")})
-               | VALUES
-               |  (${columnValues.mkString("'", "', '", "'")}, $absolute)
-            """.stripMargin
-
-          val statement = targetConnection.createStatement()
-          statement.execute(query)
-
-          convertResultSet(targetConnection, result, total + absolute, numNulls)
-        } else {
-          (total, numNulls)
-        }
-      }
-
-
-      targetTable.withJdbc[FrequenciesAndNumRowsWithJdbc] { targetConnection: Connection =>
-
-        val (numRows, numNulls) = convertResultSet(targetConnection, result, 0, 0)
-
-        val nullValueQuery =
-          s"""
-             | INSERT INTO
-             |  ${targetTable.name} (
-             |  ${cols.keys.toSeq.mkString(", ")})
-             | VALUES
-             |  (${Seq.fill(groupingColumns.size)("null").mkString(", ")}, $numNulls)
+    val query =
+      s"""
+         |CREATE TEMPORARY TABLE ${frequenciesTable.name} AS (
+         | SELECT $selectColumns, COUNT(*) AS $COUNT_COL
+         |    FROM ${table.name}
+         |    GROUP BY $groupByColumns)
         """.stripMargin
 
-        val nullValueStatement = targetConnection.createStatement()
-        nullValueStatement.execute(nullValueQuery)
+    val statement = connection.createStatement()
+    statement.execute(query)
 
-        result.close()
-
-        FrequenciesAndNumRowsWithJdbc(targetTable, Some(numRows), Some(numNulls))
-      }
-    }
+    FrequenciesAndNumRowsWithJdbc(frequenciesTable)
   }
 }
 

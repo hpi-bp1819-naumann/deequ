@@ -129,19 +129,13 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
   : M = {
 
     try {
-      validatePreconditions(data)
+      preconditionsWithJdbc.foreach { condition => condition(data) }
+
       val state = computeStateFrom(data)
+
       calculateMetric(state, aggregateWith, saveStatesWith)
     } catch {
       case error: Exception => toFailureMetric(error)
-    }
-  }
-
-  // TODO: This function is not defined in Analyzer.scala
-  def validatePreconditions(data: Table): Unit = {
-    val exceptionOption = JdbcPreconditions.findFirstFailing(data, this.preconditionsWithJdbc)
-    if (exceptionOption.nonEmpty) {
-      throw exceptionOption.get
     }
   }
 

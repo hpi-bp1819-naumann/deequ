@@ -103,7 +103,7 @@ object Constraint {
     * @param binningUdf Optional binning function to bin the values
     * @param maxBins    Optional maximum bin count to limit the number of metrics created
     * @param hint A hint to provide additional context why a constraint could have failed
-    */
+    *//*
   def histogramConstraint(
       column: String,
       assertion: Distribution => Boolean,
@@ -188,7 +188,7 @@ object Constraint {
 
     new NamedConstraint(constraint, s"AnomalyConstraint($analyzer)")
   }
-
+*/
   /**
     * Runs Uniqueness analysis on the given columns and executes the assertion
     *
@@ -210,7 +210,7 @@ object Constraint {
 
     new NamedConstraint(constraint, s"UniquenessConstraint($uniqueness)")
   }
-
+/*
   /**
     * Runs Distinctness analysis on the given columns and executes the assertion
     *
@@ -575,6 +575,6 @@ object Constraint {
     distribution.values.get(keyType.toString)
       .map { _.ratio }
       .getOrElse(0.0)
-  }
+  }*/
 
 }

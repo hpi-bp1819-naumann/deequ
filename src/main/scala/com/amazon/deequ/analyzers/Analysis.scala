@@ -51,7 +51,7 @@ case class Analysis(analyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty) {
     */
   @deprecated("Use the AnalysisRunner instead (the onData method there)", "24-09-2019")
   def run(
-      data: DataFrame,
+      data: Any,
       aggregateWith: Option[StateLoader] = None,
       saveStatesWith: Option[StatePersister] = None,
       storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK)

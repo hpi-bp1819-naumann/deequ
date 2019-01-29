@@ -18,6 +18,7 @@ package com.amazon.deequ
 
 import com.amazon.deequ.analyzers._
 import com.amazon.deequ.analyzers.applicability.{AnalyzersApplicability, Applicability, CheckApplicability}
+import com.amazon.deequ.analyzers.jdbc.Table
 import com.amazon.deequ.analyzers.runners.{AnalysisRunner, AnalysisRunnerRepositoryOptions, AnalyzerContext}
 import com.amazon.deequ.checks.{Check, CheckStatus}
 import com.amazon.deequ.io.DfsUtils
@@ -47,6 +48,10 @@ class VerificationSuite {
     * @param data tabular data on which the checks should be verified
     */
   def onData(data: DataFrame): VerificationRunBuilder = {
+    new VerificationRunBuilder(data)
+  }
+
+  def onData(data: Table): VerificationRunBuilder = {
     new VerificationRunBuilder(data)
   }
 
@@ -105,7 +110,7 @@ class VerificationSuite {
     *         constraints and all metrics produced
     */
   private[deequ] def doVerificationRun(
-      data: DataFrame,
+      data: Any,
       checks: Seq[Check],
       requiredAnalyzers: Seq[Analyzer[_, Metric[_]]],
       aggregateWith: Option[StateLoader] = None,

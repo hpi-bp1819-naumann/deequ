@@ -40,21 +40,21 @@ private[examples] object BasicExample extends App {
           // we expect 5 records
           .hasSize(_ == 5)
           // 'id' should never be NULL
-          .isComplete("id")
+          //.isComplete("id")
           // 'id' should not contain duplicates
           .isUnique("id")
           // 'name' should never be NULL
-          .isComplete("name")
+          /*.isComplete("name")
           // 'priority' should only contain the values "high" and "low"
           .isContainedIn("priority", Array("high", "low"))
           // 'numViews' should not contain negative values
-          .isNonNegative("numViews"))
+          .isNonNegative("numViews")*/)/*
       .addCheck(
         Check(CheckLevel.Warning, "distribution checks")
           // at least half of the 'description's should contain a url
           .containsURL("description", _ >= 0.5)
           // half of the items should have less than 10 'numViews'
-          .hasApproxQuantile("numViews", 0.5, _ <= 10))
+          .hasApproxQuantile("numViews", 0.5, _ <= 10))*/
       .run()
 
     if (verificationResult.status == Success) {

@@ -96,27 +96,7 @@ object AnalysisRunner {
     * @param metricsRepositoryOptions Options related to the MetricsRepository
     * @param fileOutputOptions Options related to FileOuput using a SparkSession
     * @return AnalyzerContext holding the requested metrics per analyzer
-    *//*
-  private[deequ] def doAnalysisRun(
-      data: Any,
-      analyzers: Seq[Analyzer[_, Metric[_]]],
-      aggregateWith: Option[StateLoader] = None,
-      saveStatesWith: Option[StatePersister] = None,
-      storageLevelOfGroupedDataForMultiplePasses: StorageLevel = StorageLevel.MEMORY_AND_DISK,
-      metricsRepositoryOptions: AnalysisRunnerRepositoryOptions =
-      AnalysisRunnerRepositoryOptions(),
-      fileOutputOptions: AnalysisRunnerFileOutputOptions =
-      AnalysisRunnerFileOutputOptions())
-  : AnalyzerContext = {
-
-    data match {
-      case df: DataFrame => doAnalysisRunWithSpark(df, analyzers, aggregateWith, saveStatesWith, storageLevelOfGroupedDataForMultiplePasses, metricsRepositoryOptions, fileOutputOptions)
-      case tbl: Table => doAnalysisRunWithJdbc(tbl, analyzers, aggregateWith, saveStatesWith, storageLevelOfGroupedDataForMultiplePasses, metricsRepositoryOptions, fileOutputOptions)
-
-      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
-    }
-  }*/
-
+    */
   private[deequ] def doAnalysisRun(
       data: Any,
       analyzers: Seq[Analyzer[_, Metric[_]]],
@@ -572,7 +552,7 @@ object AnalysisRunner {
 
         val (results, offsets) = frequenciesAndNumRows match {
 
-          case state: FrequenciesAndNumRowsWithSpark =>
+          case sparkState: FrequenciesAndNumRowsWithSpark =>
             val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithSpark(numRows) }
             /* Compute offsets so that the analyzers can correctly pick their results from the row */
             val offsets = shareableAnalyzers.scanLeft(0) { case (current, analyzer) =>
@@ -580,14 +560,14 @@ object AnalysisRunner {
             }
 
             /* Execute aggregation on grouped data */
-            val results = state.frequencies
+            val results = sparkState.frequencies
               .agg(aggregations.head, aggregations.tail: _*)
               .collect()
               .head
 
             (AggregationResult.from(results), offsets)
 
-          case state: FrequenciesAndNumRowsWithJdbc =>
+          case jdbcState: FrequenciesAndNumRowsWithJdbc =>
             val aggregations = shareableAnalyzers.flatMap { _.aggregationFunctionsWithJdbc(numRows) }
 
             /* Compute offsets so that the analyzers can correctly pick their results from the row */
@@ -595,7 +575,7 @@ object AnalysisRunner {
               current + analyzer.aggregationFunctionsWithJdbc(numRows).length
             }
 
-            (state.table.executeAggregations(aggregations), offsets)
+            (jdbcState.table.executeAggregations(aggregations), offsets)
 
           case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
         }

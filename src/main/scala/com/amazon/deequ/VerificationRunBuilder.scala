@@ -24,7 +24,7 @@ import com.amazon.deequ.repository._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 /** A class to build a VerificationRun using a fluent API */
-class VerificationRunBuilder(val data: DataFrame) {
+class VerificationRunBuilder(val data: Any) {
 
   protected var requiredAnalyzers: Seq[Analyzer[_, Metric[_]]] = Seq.empty
 
@@ -189,7 +189,7 @@ class VerificationRunBuilderWithRepository(
     * @param anomalyDetectionStrategy The anomaly detection strategy
     * @param analyzer The analyzer for the metric to run anomaly detection on
     * @param anomalyCheckConfig Some configuration settings for the Check
-    */
+    *//*
   def addAnomalyCheck[S <: State[S]](
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
       analyzer: Analyzer[S, Metric[Double]],
@@ -206,7 +206,7 @@ class VerificationRunBuilderWithRepository(
     checks :+= VerificationRunBuilderHelper.getAnomalyCheck(metricsRepository.get,
       anomalyDetectionStrategy, analyzer, anomalyCheckConfigOrDefault)
     this
-  }
+  }*/
 }
 
 class VerificationRunBuilderWithSparkSession(
@@ -264,14 +264,14 @@ private[this] object VerificationRunBuilderHelper {
     * @param anomalyDetectionStrategy The anomaly detection strategy
     * @param analyzer The analyzer for the metric to run anomaly detection on
     * @param anomalyCheckConfig Some configuration settings for the Check
-    */
+    *//*
   def getAnomalyCheck[S <: State[S]](
       metricsRepository: MetricsRepository,
       anomalyDetectionStrategy: AnomalyDetectionStrategy,
       analyzer: Analyzer[S, Metric[Double]],
       anomalyCheckConfig: AnomalyCheckConfig)
     : Check = {
-
+/*
     Check(anomalyCheckConfig.level, anomalyCheckConfig.description)
       .isNewestPointNonAnomalous(
         metricsRepository,
@@ -280,8 +280,8 @@ private[this] object VerificationRunBuilderHelper {
         anomalyCheckConfig.withTagValues,
         anomalyCheckConfig.afterDate,
         anomalyCheckConfig.beforeDate
-      )
-  }
+      )*/
+  }*/
 }
 
 /**

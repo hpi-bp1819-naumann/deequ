@@ -17,7 +17,7 @@
 package com.amazon.deequ.checks
 
 import com.amazon.deequ.analyzers.runners.AnalyzerContext
-import com.amazon.deequ.analyzers.{Analyzer, Histogram, Patterns, State}
+import com.amazon.deequ.analyzers.{Analyzer, State}
 import com.amazon.deequ.anomalydetection.{AnomalyDetectionStrategy, AnomalyDetector, DataPoint, HistoryUtils}
 import com.amazon.deequ.constraints.Constraint._
 import com.amazon.deequ.constraints._
@@ -99,7 +99,7 @@ case class Check(
 
     addFilterableConstraint { filter => Constraint.sizeConstraint(assertion, filter, hint) }
   }
-
+/*
   /**
     * Creates a constraint that asserts on a column completion.
     *
@@ -128,7 +128,7 @@ case class Check(
     : CheckWithLastConstraintFilterable = {
     addFilterableConstraint { filter => completenessConstraint(column, assertion, filter, hint) }
   }
-
+*/
   /**
     * Creates a constraint that asserts on a column uniqueness.
     *
@@ -219,7 +219,7 @@ case class Check(
   def hasUniqueness(column: String, assertion: Double => Boolean, hint: Option[String]): Check = {
     hasUniqueness(Seq(column), assertion, hint)
   }
-
+/*
   /**
     * Creates a constraint on the distinctness in a single or combined set of key columns.
     *
@@ -265,7 +265,7 @@ case class Check(
     *                   maxBins sets the N
     * @param hint A hint to provide additional context why a constraint could have failed
     * @return
-    */
+    *//*
   def hasNumberOfDistinctValues(
       column: String,
       assertion: Long => Boolean,
@@ -301,7 +301,7 @@ case class Check(
     : Check = {
 
     addConstraint(histogramConstraint(column, assertion, binningUdf, maxBins, hint))
-  }
+  }*/
 
   /**
     * Creates a constraint that runs AnomalyDetection on the new value
@@ -569,7 +569,7 @@ case class Check(
       Constraint.patternMatchConstraint(column, pattern, assertion, filter, name, hint)
     }
   }
-
+/*
   /**
     * Check to run against the compliance of a column against a Credit Card pattern.
     *
@@ -639,7 +639,7 @@ case class Check(
 
     hasPattern(column, Patterns.SOCIAL_SECURITY_NUMBER_US, assertion,
       Some(s"containsSocialSecurityNumber($column)"), hint)
-  }
+  }*/
 
   /**
     * Check to run against the fraction of rows that conform to the given data type.
@@ -869,7 +869,7 @@ case class Check(
 
     satisfies(predicate, s"$column between $lowerBound and $upperBound", hint = hint)
   }
-
+*/
   /**
     * Evaluate this check on computed metrics
     * @param context result of the metrics computation

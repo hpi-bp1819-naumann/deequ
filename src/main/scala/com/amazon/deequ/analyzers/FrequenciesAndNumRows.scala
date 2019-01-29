@@ -65,7 +65,7 @@ case class FrequenciesAndNumRowsWithJdbc(table: Table,
     _numNulls match {
       case None =>
         val firstGroupingColumn = table.columns().head._1
-        val numNulls = s"SUM(CASE WHEN ($firstGroupingColumn = NULL) THEN absolute ELSE 0 END)"
+        val numNulls = s"SUM(CASE WHEN ($firstGroupingColumn = NULL) THEN $COUNT_COL ELSE 0 END)"
 
         val result = table.executeAggregations(numNulls :: Nil)
 
@@ -79,7 +79,7 @@ case class FrequenciesAndNumRowsWithJdbc(table: Table,
   def numRows(): Long = {
     _numRows match {
       case None =>
-        val numRows = s"SUM(absolute)"
+        val numRows = s"SUM($COUNT_COL)"
 
         val result = table.executeAggregations(numRows :: Nil)
 
@@ -92,32 +92,30 @@ case class FrequenciesAndNumRowsWithJdbc(table: Table,
 
   def frequencies(): (mutable.LinkedHashMap[String, String], Map[Seq[String], Long]) = {
 
-    table.withJdbc[(mutable.LinkedHashMap[String, String], Map[Seq[String], Long])] {
-      connection: Connection =>
+    val connection = table.jdbcConnection
 
-        var frequencies = Map[Seq[String], Long]()
+    var frequencies = Map[Seq[String], Long]()
 
-        val query =
-          s"""
-             |SELECT
-             | *
-             |FROM
-             | ${table.name}
-      """.stripMargin
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | ${table.name}
+        """.stripMargin
 
-        val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-          ResultSet.CONCUR_READ_ONLY)
+    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-        val result = statement.executeQuery()
-        val numGroupingColumns = result.getMetaData.getColumnCount - 1
+    val result = statement.executeQuery()
+    val numGroupingColumns = result.getMetaData.getColumnCount - 1
 
-        while (result.next()) {
-          val columns = (1 to numGroupingColumns).map(col => result.getString(col)).seq
-          frequencies += (columns -> result.getLong(numGroupingColumns + 1))
-        }
-
-        (table.columns(), frequencies)
+    while (result.next()) {
+      val columns = (1 to numGroupingColumns).map(col => result.getString(col)).seq
+      frequencies += (columns -> result.getLong(numGroupingColumns + 1))
     }
+
+    (table.columns(), frequencies)
   }
 
   override def sum(other: FrequenciesAndNumRows): FrequenciesAndNumRowsWithJdbc = {
@@ -127,18 +125,19 @@ case class FrequenciesAndNumRowsWithJdbc(table: Table,
     val totalRows = numRows + otherState.numRows
     val newTable = JdbcFrequencyBasedAnalyzerUtils.join(table, otherState.table)
 
-    FrequenciesAndNumRowsWithJdbc(newTable, Some(totalRows), Some(numNulls() + otherState.numNulls()))
+    FrequenciesAndNumRowsWithJdbc(newTable,
+      Some(totalRows), Some(numNulls() + otherState.numNulls()))
   }
 }
 
 
 object FrequenciesAndNumRowsWithJdbc {
-
+/*
   def from(columns: mutable.LinkedHashMap[String, String],
            frequencies: Map[Seq[String], Long], numRows: Long): FrequenciesAndNumRowsWithJdbc = {
 
     val table = Table.createAndFill(JdbcFrequencyBasedAnalyzerUtils.newDefaultTable(), columns, frequencies)
 
     FrequenciesAndNumRowsWithJdbc(table, Some(numRows))
-  }
+  }*/
 }

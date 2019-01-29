@@ -24,39 +24,7 @@ import com.amazon.deequ.analyzers.AggregationResult
 import scala.collection.mutable
 
 case class Table (name: String,
-                  jdbcUrl: String,
-                  jdbcConnectionProperties: Properties,
-                  onConnect: Option[Connection => Unit] = None) {
-
-
-  /**
-    * just create a connection when needed
-    * @return the new opened connection
-    */
-  private def createConnection(): Connection = {
-
-    val connection = DriverManager.getConnection(jdbcUrl, jdbcConnectionProperties)
-
-    onConnect match {
-      case Some(theOnConnectFunc) => theOnConnectFunc(connection)
-      case _ =>
-    }
-
-    connection
-  }
-
-
-  private[analyzers] def withJdbc[T](func: Connection => T): T = {
-
-    val connection = createConnection()
-
-    try {
-      func(connection)
-    } finally {
-      connection.close()
-    }
-  }
-
+                  jdbcConnection: Connection) {
 
   /**
     * Builds and executes SQL statement and returns the ResultSet
@@ -66,56 +34,49 @@ case class Table (name: String,
     */
   def executeAggregations(aggregations: Seq[String]): AggregationResult = {
 
-    withJdbc[AggregationResult] { connection: Connection =>
+    val query =
+      s"""
+         |SELECT
+         | ${aggregations.mkString(", ")}
+         |FROM
+         | $name
+      """.stripMargin
 
-      val query =
-        s"""
-           |SELECT
-           | ${aggregations.mkString(", ")}
-           |FROM
-           | $name
-        """.stripMargin
-
-      val result = connection.createStatement().executeQuery(query)
-      // TODO: Test return value of next() and throw exception
-      result.next()
-      AggregationResult.from(result)
-    }
+    val result = jdbcConnection.createStatement().executeQuery(query)
+    // TODO: Test return value of next() and throw exception
+    result.next()
+    AggregationResult.from(result)
   }
 
 
   private[analyzers] def columns(): mutable.LinkedHashMap[String, String] = {
 
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | $name
+         |LIMIT 0
+        """.stripMargin
 
-    withJdbc[mutable.LinkedHashMap[String, String]] { connection: Connection =>
+    val result = jdbcConnection.createStatement().executeQuery(query)
 
-      val query =
-        s"""
-           |SELECT
-           | *
-           |FROM
-           | $name
-           |LIMIT 0
-          """.stripMargin
+    // TODO: Test return value of next() and throw exception
+    val metaData = result.getMetaData
+    val colCount = metaData.getColumnCount
 
-      val result = connection.createStatement().executeQuery(query)
-
-      // TODO: Test return value of next() and throw exception
-      val metaData = result.getMetaData
-      val colCount = metaData.getColumnCount
-
-      var cols = mutable.LinkedHashMap[String, String]()
-      for (col <- 1 to colCount) {
-        cols(metaData.getColumnLabel(col)) = metaData.getColumnTypeName(col)
-      }
-
-      cols
+    var cols = mutable.LinkedHashMap[String, String]()
+    for (col <- 1 to colCount) {
+      cols(metaData.getColumnLabel(col)) = metaData.getColumnTypeName(col)
     }
+
+    cols
   }
 }
 
 
-
+/*
 object Table {
 
   def create(table: Table,
@@ -180,7 +141,7 @@ object Table {
     fill(table, columns, frequencies)
   }
 }
-
+*/
 /*
 case class JdbcRow(result: Seq[Any]) extends AggregationResult(result)
 
