@@ -44,11 +44,11 @@ abstract class FrequencyBasedAnalyzer(columnsToGroupOn: Seq[String])
 
   /** We need at least one grouping column, and all specified columns must exist */
   override def preconditionsWithSpark: Seq[StructType => Unit] = {
-    Seq(atLeastOne(columnsToGroupOn)) ++ columnsToGroupOn.map { hasColumn } ++ super.preconditionsWithSpark
+    super.preconditionsWithSpark ++ Seq(atLeastOne(columnsToGroupOn)) ++ columnsToGroupOn.map { hasColumn }
   }
 
   override def preconditionsWithJdbc: Seq[Table => Unit] = {
-    Seq(JdbcPreconditions.atLeastOne(columnsToGroupOn)) ++ columnsToGroupOn.map { JdbcPreconditions.hasColumn } ++ super.preconditionsWithJdbc
+    super.preconditionsWithJdbc ++ Seq(JdbcPreconditions.atLeastOne(columnsToGroupOn)) ++ columnsToGroupOn.map { JdbcPreconditions.hasColumn }
   }
 }
 
@@ -62,7 +62,7 @@ object FrequencyBasedAnalyzer {
       case df: DataFrame => computeFrequenciesWithSpark(df, groupingColumns, numRows)
       case tbl: Table => computeFrequenciesWithJdbc(tbl, groupingColumns, numRows)
 
-      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+      case _ => throw IllegalDataFormatException()
     }
   }
 
@@ -129,16 +129,16 @@ object FrequencyBasedAnalyzer {
 
     val query =
       s"""
-         |CREATE TEMPORARY TABLE ${frequenciesTable.name} AS (
+         |CREATE TEMPORARY TABLE ${frequenciesTable.name} AS
          | SELECT $selectColumns, COUNT(*) AS $COUNT_COL
          |    FROM ${table.name}
-         |    GROUP BY $groupByColumns)
+         |    GROUP BY $groupByColumns
         """.stripMargin
 
     val statement = connection.createStatement()
     statement.execute(query)
 
-    FrequenciesAndNumRowsWithJdbc(frequenciesTable)
+    FrequenciesAndNumRowsWithJdbc(frequenciesTable, numRows)
   }
 }
 
@@ -184,9 +184,13 @@ abstract class ScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupO
     metricFromValue(value, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
   }
 
+  protected def emptyFailureMetric(): DoubleMetric = {
+    metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
+  }
+
   def fromAggregationResult(result: AggregationResult, offset: Int): DoubleMetric = {
     if (result.isNullAt(offset)) {
-      metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
+      emptyFailureMetric()
     } else {
       toSuccessMetric(result.getDouble(offset))
     }

@@ -166,7 +166,7 @@ object AnalysisRunner {
 
         (passedAnalyzers, preconditionFailures)
 
-      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+      case _ => throw IllegalDataFormatException()
     }
 
     /* Identify analyzers which require us to group the data */
@@ -356,7 +356,7 @@ object AnalysisRunner {
 
             (tbl.executeAggregations(aggregations), offsets)
 
-          case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+          case _ => throw IllegalDataFormatException()
         }
 
         shareableAnalyzers.zip(offsets).map { case (analyzer, offset) =>
@@ -577,7 +577,7 @@ object AnalysisRunner {
 
             (jdbcState.table.executeAggregations(aggregations), offsets)
 
-          case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+          case _ => throw IllegalDataFormatException()
         }
 
         shareableAnalyzers.zip(offsets)

@@ -16,7 +16,7 @@
 
 package com.amazon.deequ.analyzers
 
-import com.amazon.deequ.analyzers.Analyzers.COUNT_COL
+import com.amazon.deequ.analyzers.Analyzers.{COUNT_COL, entityFrom, metricFromEmpty}
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers.{conditionalCount, conditionalSelection}
 import com.amazon.deequ.metrics.DoubleMetric
 import org.apache.spark.sql.functions.{col, count, lit, sum}
@@ -34,15 +34,20 @@ case class UniqueValueRatio(columns: Seq[String])
     val noNullValue = Some(s"${columns.head} IS NOT NULL")
     val conditions = noNullValue :: Some(s"$COUNT_COL = 1") :: Nil
 
-    s"SUM(${conditionalSelection("1", conditions)})" ::
-      conditionalCount(noNullValue) :: Nil
+    val countUniqueValues = s"COUNT(${conditionalSelection("1", conditions)})"
+
+    countUniqueValues :: conditionalCount(noNullValue) :: Nil
   }
 
   override def fromAggregationResult(result: AggregationResult, offset: Int): DoubleMetric = {
-    val numUniqueValues = result.getDouble(offset)
-    val numDistinctValues = result.getLong(offset + 1).toDouble
+    if (result.getDouble(offset + 1) == 0) {
+      emptyFailureMetric()
+    } else {
+      val numUniqueValues = result.getDouble(offset)
+      val numDistinctValues = result.getLong(offset + 1).toDouble
 
-    toSuccessMetric(numUniqueValues / numDistinctValues)
+      toSuccessMetric(numUniqueValues / numDistinctValues)
+    }
   }
 }
 

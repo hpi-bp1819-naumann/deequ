@@ -18,6 +18,7 @@ package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.analyzers.Analyzers._
 import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzers, JdbcPreconditions, Table}
 import org.apache.spark.sql.DeequFunctions.stateful_stddev_pop
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Column, Row}
@@ -47,27 +48,48 @@ case class StandardDeviationState(
 case class StandardDeviation(column: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[StandardDeviationState]("StandardDeviation", column) {
 
-  override def aggregationFunctions(): Seq[Column] = {
+  override def aggregationFunctionsWithSpark(): Seq[Column] = {
     stateful_stddev_pop(conditionalSelection(column, where)) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[StandardDeviationState] = {
+  override def aggregationFunctionsWithJdbc() : Seq[String] = {
+    JdbcAnalyzers.conditionalCountNotNull(column, where) :: s"SUM(${JdbcAnalyzers.conditionalSelection(column, where)})" ::
+      s"SUM(POWER(${JdbcAnalyzers.conditionalSelection(column, where)}, 2))" :: Nil
+  }
 
-    if (result.isNullAt(offset)) {
-      None
-    } else {
-      val row = result.getAs[Row](offset)
-      val n = row.getDouble(0)
+  override def fromAggregationResult(result: AggregationResult, offset: Int): Option[StandardDeviationState] = {
 
-      if (n == 0.0) {
+    if (result.row.size == 1) {
+      if (result.isNullAt(offset)) {
         None
       } else {
-        Some(StandardDeviationState(n, row.getDouble(1), row.getDouble(2)))
+        val row = result.getAs[Row](offset)
+        val n = row.getDouble(0)
+
+        if (n == 0.0) {
+          None
+        } else {
+          Some(StandardDeviationState(n, row.getDouble(1), row.getDouble(2)))
+        }
+      }
+    } else {
+      ifNoNullsIn(result, offset, 3) { _ =>
+        val num_rows = result.getDouble(offset)
+        val col_sum = result.getDouble(offset + 1)
+        val col_sum_squared = result.getDouble(offset + 2)
+        val col_avg : Double = col_sum / num_rows
+        val m2 : Double = col_sum_squared - col_sum * col_sum / num_rows
+        StandardDeviationState(num_rows, col_avg, m2)
       }
     }
   }
 
-  override protected def additionalPreconditions(): Seq[StructType => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+  override protected def additionalPreconditionsWithSpark(): Seq[StructType => Unit] = {
+    Preconditions.hasColumn(column) :: Preconditions.isNumeric(column) :: Nil
+  }
+
+  override def additionalPreconditionsWithJdbc(): Seq[Table => Unit] = {
+    JdbcPreconditions.hasColumn(column) :: JdbcPreconditions.isNumeric(column) ::
+      JdbcPreconditions.hasNoInjection(where) :: Nil
   }
 }

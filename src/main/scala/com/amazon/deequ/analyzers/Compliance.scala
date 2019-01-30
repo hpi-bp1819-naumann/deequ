@@ -40,6 +40,10 @@ case class Compliance(instance: String, predicate: String, where: Option[String]
 
   override def fromAggregationResult(result: AggregationResult, offset: Int): Option[NumMatchesAndCount] = {
 
+    if (result.getLong(offset + 1) == 0) {
+      return None
+    }
+
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }

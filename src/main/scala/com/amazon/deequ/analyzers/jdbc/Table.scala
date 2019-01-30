@@ -16,8 +16,7 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.{Connection, DriverManager, ResultSet}
-import java.util.Properties
+import java.sql.Connection
 
 import com.amazon.deequ.analyzers.AggregationResult
 

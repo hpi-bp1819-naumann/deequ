@@ -98,10 +98,10 @@ trait Analyzer[S <: State[_], +M <: Metric[_]] {
     : M = {
 
     data match {
-      case df: DataFrame => calculateWithSpark(df, aggregateWith, saveStatesWith)
+      case df: DataFrame @unchecked => calculateWithSpark(df, aggregateWith, saveStatesWith)
       case tbl: Table => calculateWithJdbc(tbl, aggregateWith, saveStatesWith)
 
-      case _ => throw new IllegalArgumentException("data can only be of type DataFrame or Table")
+      case _ => throw IllegalDataFormatException()
     }
   }
 
@@ -498,3 +498,6 @@ private[deequ] object Analyzers {
       MetricCalculationException.wrapIfNecessary(exception)))
   }
 }
+
+case class IllegalDataFormatException()
+  extends IllegalArgumentException("data can only be of type DataFrame or Table")

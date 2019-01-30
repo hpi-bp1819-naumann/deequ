@@ -42,7 +42,8 @@ case class Completeness(column: String, where: Option[String] = None) extends
 
   override def aggregationFunctionsWithJdbc(): Seq[String] = {
 
-    val summation = s"COUNT(${JdbcAnalyzers.conditionalSelectionNotNull(column, where)})"
+    val numNotNull = s"COUNT(${JdbcAnalyzers.conditionalSelectionNotNull(column, where)})"
+    val summation = s"CASE WHEN $numNotNull = 0 AND COUNT(*) = 0 THEN NULL ELSE $numNotNull END"
 
     summation :: JdbcAnalyzers.conditionalCount(where) :: Nil
   }

@@ -44,61 +44,55 @@ trait JdbcFixtureSupport {
     }
   }
 
-  def getDefaultTableWithName(tableName: String): Table = {
-    Table(tableName, JdbcContextSpec.jdbcUrl,
-      JdbcContextSpec.connectionProperties, Some(JdbcContextSpec.onConnect))
-  }
-
   def fillTableWithData(tableName: String,
-                        columns: mutable.LinkedHashMap[String, String], values: Seq[Seq[Any]]
+                        columns: mutable.LinkedHashMap[String, String], values: Seq[Seq[Any]],
+                        connection: Connection
                        ): Table = {
 
-    val table = getDefaultTableWithName(tableName)
+    val table = Table(tableName, connection)
 
-    table.withJdbc { connection =>
+    val deletionQuery =
+      s"""
+         |DROP TABLE IF EXISTS
+         | $tableName
+       """.stripMargin
 
-      val deletionQuery =
+    val stmt = connection.createStatement()
+    stmt.execute(deletionQuery)
+
+    val creationQuery =
+      s"""
+         |CREATE TABLE IF NOT EXISTS
+         | $tableName
+         |  ${columns map { case (key, value) => s"$key $value" } mkString("(", ",", ")")}
+       """.stripMargin
+
+    stmt.execute(creationQuery)
+
+    if (values.nonEmpty) {
+      val sqlValues = values.map(row => {
+        row.map({
+          case value: String => "\"" + value + "\""
+          case value => s"$value"
+        }).mkString("(", ",", ")")
+      }).mkString(",")
+
+      val insertQuery =
         s"""
-           |DROP TABLE IF EXISTS
-           | $tableName
+           |INSERT INTO $tableName
+           | ${columns.keys.mkString("(", ",", ")")}
+           |VALUES
+           | $sqlValues
          """.stripMargin
 
-      val stmt = connection.createStatement()
-      stmt.execute(deletionQuery)
-
-      val creationQuery =
-        s"""
-           |CREATE TABLE IF NOT EXISTS
-           | $tableName
-           |  ${columns map { case (key, value) => s"$key $value" } mkString("(", ",", ")")}
-         """.stripMargin
-
-      stmt.execute(creationQuery)
-
-      if (values.nonEmpty) {
-        val sqlValues = values.map(row => {
-          row.map({
-            case value: String => "\"" + value + "\""
-            case value => s"$value"
-          }).mkString("(", ",", ")")
-        }).mkString(",")
-
-        val insertQuery =
-          s"""
-             |INSERT INTO $tableName
-             | ${columns.keys.mkString("(", ",", ")")}
-             |VALUES
-             | $sqlValues
-           """.stripMargin
-
-        stmt.execute(insertQuery)
-      }
+      stmt.execute(insertQuery)
     }
+    
     table
   }
 
 
-  def getTableMissingColumnWithSize(): (Table, Long) = {
+  def getTableMissingColumnWithSize(connection: Connection): (Table, Long) = {
     val columns = mutable.LinkedHashMap[String, String]("item" -> "INTEGER", "att1" -> "INTEGER")
     val data =
       Seq(
@@ -106,27 +100,27 @@ trait JdbcFixtureSupport {
         Seq(2, null),
         Seq(3, null))
 
-    (fillTableWithData("MissingColumn", columns, data), data.size)
+    (fillTableWithData("MissingColumn", columns, data, connection), data.size)
   }
 
-  def getTableMissingColumn(): Table = {
-    getTableMissingColumnWithSize()._1
+  def getTableMissingColumn(connection: Connection): Table = {
+    getTableMissingColumnWithSize(connection)._1
   }
 
-  def getTableEmptyWithSize(): (Table, Long) = {
+  def getTableEmptyWithSize(connection: Connection): (Table, Long) = {
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "INTEGER", "att1" -> "INTEGER")
 
     val data = Seq()
 
-    (fillTableWithData("EmptyTable", columns, data), 0)
+    (fillTableWithData("EmptyTable", columns, data, connection), 0)
   }
 
-  def getTableEmpty(): Table = {
-    getTableEmptyWithSize()._1
+  def getTableEmpty(connection: Connection): Table = {
+    getTableEmptyWithSize(connection)._1
   }
 
-  def getTableMissingWithSize(): (Table, Long) = {
+  def getTableMissingWithSize(connection: Connection): (Table, Long) = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "att2" -> "TEXT")
@@ -146,14 +140,14 @@ trait JdbcFixtureSupport {
         Seq("11", null, "f"),
         Seq("12", null, "d")
       )
-    (fillTableWithData("Missing", columns, data), data.size)
+    (fillTableWithData("Missing", columns, data, connection), data.size)
   }
 
-  def getTableMissing(): Table = {
-    getTableMissingWithSize()._1
+  def getTableMissing(connection: Connection): Table = {
+    getTableMissingWithSize(connection)._1
   }
 
-  def getTableFullWithSize(): (Table, Long) = {
+  def getTableFullWithSize(connection: Connection): (Table, Long) = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "att2" -> "TEXT")
@@ -165,14 +159,14 @@ trait JdbcFixtureSupport {
         Seq("3", "a", "c"),
         Seq("4", "b", "d")
       )
-    (fillTableWithData("Full", columns, data), data.size)
+    (fillTableWithData("Full", columns, data, connection), data.size)
   }
 
-  def getTableFull(): Table = {
-    getTableFullWithSize()._1
+  def getTableFull(connection: Connection): Table = {
+    getTableFullWithSize(connection)._1
   }
 
-  def getTableWithNegativeNumbers(): Table = {
+  def getTableWithNegativeNumbers(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "att2" -> "TEXT")
@@ -184,10 +178,10 @@ trait JdbcFixtureSupport {
         Seq("3", "-3", "-3.0"),
         Seq("4", "-4", "-4.0")
       )
-    fillTableWithData("NegativeNumbers", columns, data)
+    fillTableWithData("NegativeNumbers", columns, data, connection)
   }
 
-  def getTableCompleteAndInCompleteColumns(): Table = {
+  def getTableCompleteAndInCompleteColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "att2" -> "TEXT")
@@ -201,10 +195,10 @@ trait JdbcFixtureSupport {
         Seq("5", "b", null),
         Seq("6", "a", "f")
       )
-    fillTableWithData("CompleteAndInCompleteColumns", columns, data)
+    fillTableWithData("CompleteAndInCompleteColumns", columns, data, connection)
   }
 
-  def getTableCompleteAndInCompleteColumnsDelta(): Table = {
+  def getTableCompleteAndInCompleteColumnsDelta(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "att2" -> "TEXT")
@@ -215,10 +209,10 @@ trait JdbcFixtureSupport {
         Seq("8", "b", "d"),
         Seq("9", "a", null)
       )
-    fillTableWithData("CompleteAndInCompleteColumns", columns, data)
+    fillTableWithData("CompleteAndInCompleteColumns", columns, data, connection)
   }
 
-  def getTableFractionalIntegralTypes(): Table = {
+  def getTableFractionalIntegralTypes(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT")
@@ -228,10 +222,10 @@ trait JdbcFixtureSupport {
         Seq("1", "1.0"),
         Seq("2", "1")
       )
-    fillTableWithData("FractionalIntegralTypes", columns, data)
+    fillTableWithData("FractionalIntegralTypes", columns, data, connection)
   }
 
-  def getTableFractionalStringTypes(): Table = {
+  def getTableFractionalStringTypes(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("item" -> "TEXT", "att1" -> "TEXT")
     val data =
@@ -239,10 +233,10 @@ trait JdbcFixtureSupport {
         Seq("1", "1.0"),
         Seq("2", "a")
       )
-    fillTableWithData("FractionalStringTypes", columns, data)
+    fillTableWithData("FractionalStringTypes", columns, data, connection)
   }
 
-  def getTableIntegralStringTypes(): Table = {
+  def getTableIntegralStringTypes(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("item" -> "TEXT", "att1" -> "TEXT")
     val data =
@@ -250,10 +244,10 @@ trait JdbcFixtureSupport {
         Seq("1", "1"),
         Seq("2", "a")
       )
-    fillTableWithData("IntegralStringTypes", columns, data)
+    fillTableWithData("IntegralStringTypes", columns, data, connection)
   }
 
-  def getTableWithNumericValues(): Table = {
+  def getTableWithNumericValues(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "INTEGER", "att2" -> "INTEGER")
@@ -267,10 +261,10 @@ trait JdbcFixtureSupport {
         Seq("5", 5, 6),
         Seq("6", 6, 7)
       )
-    fillTableWithData("NumericValues", columns, data)
+    fillTableWithData("NumericValues", columns, data, connection)
   }
 
-  def getTableWithNumericFractionalValues(): Table = {
+  def getTableWithNumericFractionalValues(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "INTEGER", "att2" -> "INTEGER")
@@ -284,10 +278,10 @@ trait JdbcFixtureSupport {
         Seq("5", 5.0, 6.0),
         Seq("6", 6.0, 7.0)
       )
-    fillTableWithData("NumericFractionalValues", columns, data)
+    fillTableWithData("NumericFractionalValues", columns, data, connection)
   }
 
-  def getTableWithUniqueColumns(): Table = {
+  def getTableWithUniqueColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "uniqueValues" -> "TEXT",
@@ -305,10 +299,10 @@ trait JdbcFixtureSupport {
         Seq("5", "6", null, "4", "0", "5"),
         Seq("6", "7", null, "5", "0", "6")
       )
-    fillTableWithData("UniqueColumns", columns, data)
+    fillTableWithData("UniqueColumns", columns, data, connection)
   }
 
-  def getTableWithDistinctValues(): Table = {
+  def getTableWithDistinctValues(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "TEXT", "att2" -> "TEXT")
     val data =
@@ -320,10 +314,10 @@ trait JdbcFixtureSupport {
         Seq("b", "x"),
         Seq("c", "y")
       )
-    fillTableWithData("DistinctValues", columns, data)
+    fillTableWithData("DistinctValues", columns, data, connection)
   }
 
-  def getTableWithEmptyStringValues(): Table = {
+  def getTableWithEmptyStringValues(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "TEXT", "att2" -> "TEXT")
     val data =
@@ -335,10 +329,10 @@ trait JdbcFixtureSupport {
         Seq("5", "x"),
         Seq("6", "")
       )
-    fillTableWithData("EmptyStringValues", columns, data)
+    fillTableWithData("EmptyStringValues", columns, data, connection)
   }
 
-  def getTableWithWhitespace(): Table = {
+  def getTableWithWhitespace(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "TEXT", "att2" -> "TEXT")
     val data =
@@ -350,10 +344,10 @@ trait JdbcFixtureSupport {
         Seq("5", "x"),
         Seq("6", "x")
       )
-    fillTableWithData("Whitespace", columns, data)
+    fillTableWithData("Whitespace", columns, data, connection)
   }
 
-  def getTableWithConditionallyUninformativeColumns(): Table = {
+  def getTableWithConditionallyUninformativeColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER", "att2" -> "INTEGER")
     val data =
@@ -362,10 +356,10 @@ trait JdbcFixtureSupport {
         Seq(2, 0),
         Seq(3, 0)
       )
-    fillTableWithData("ConditionallyUninformativeColumns", columns, data)
+    fillTableWithData("ConditionallyUninformativeColumns", columns, data, connection)
   }
 
-  def getTableWithConditionallyInformativeColumns(): Table = {
+  def getTableWithConditionallyInformativeColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER", "att2" -> "INTEGER")
     val data =
@@ -374,10 +368,10 @@ trait JdbcFixtureSupport {
         Seq(2, 5),
         Seq(3, 6)
       )
-    fillTableWithData("ConditionallyInformativeColumns", columns, data)
+    fillTableWithData("ConditionallyInformativeColumns", columns, data, connection)
   }
 
-  def getTableWithImproperDataTypes(): Table = {
+  def getTableWithImproperDataTypes(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "mixed" -> "TEXT", "type_integer" -> "INTEGER", "type_fractional" -> "DOUBLE")
@@ -391,10 +385,10 @@ trait JdbcFixtureSupport {
         Seq("string", 6, 3.3),
         Seq("null", 6, 3.3)
       )
-    fillTableWithData("MissingTypes", columns, data)
+    fillTableWithData("MissingTypes", columns, data, connection)
   }
 
-  def getTableWithInverseNumberedColumns(): Table = {
+  def getTableWithInverseNumberedColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER", "att2" -> "INTEGER")
     val data =
@@ -403,10 +397,10 @@ trait JdbcFixtureSupport {
         Seq(2, 5),
         Seq(3, 4)
       )
-    fillTableWithData("ConditionallyInformativeColumns", columns, data)
+    fillTableWithData("ConditionallyInformativeColumns", columns, data, connection)
   }
 
-  def getTableWithPartlyCorrelatedColumns(): Table = {
+  def getTableWithPartlyCorrelatedColumns(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER", "att2" -> "INTEGER")
     val data =
@@ -415,10 +409,10 @@ trait JdbcFixtureSupport {
         Seq(2, 2),
         Seq(3, 6)
       )
-    fillTableWithData("ConditionallyInformativeColumns", columns, data)
+    fillTableWithData("ConditionallyInformativeColumns", columns, data, connection)
   }
 
-  def getTableWithPricedItems(): Table = {
+  def getTableWithPricedItems(connection: Connection): Table = {
 
     val columns = mutable.LinkedHashMap[String, String](
       "item" -> "TEXT", "att1" -> "TEXT", "count" -> "INTEGER", "price" -> "REAL")
@@ -432,6 +426,6 @@ trait JdbcFixtureSupport {
         Seq("6", "a", 21, 78.0),
         Seq("7", null, 12, 0.0)
       )
-    fillTableWithData("PricedItems", columns, data)
+    fillTableWithData("PricedItems", columns, data, connection)
   }
 }

@@ -48,6 +48,13 @@ trait JdbcContextSpec {
 
     val connection = DriverManager.getConnection(jdbcUrl)
 
+    // Register user defined function for natural logarithm
+    Function.create(connection, "ln", new Function() {
+      protected def xFunc(): Unit = {
+        result(math.log(value_double(0)))
+      }
+    })
+
     // Register user defined function for regular expression matching
     Function.create(connection, "regexp_matches", new Function() {
       protected def xFunc(): Unit = {
