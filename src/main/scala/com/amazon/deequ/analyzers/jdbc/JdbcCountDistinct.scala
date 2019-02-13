@@ -27,7 +27,7 @@ case class JdbcCountDistinct(columns: Seq[String])
     s"COUNT(${conditionalSelection("1", condition)})" :: Nil
   }
 
-  override def fromJdbcRow(result: JdbcRow, offset: Int): DoubleMetric = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
     toSuccessMetric(result.getLong(offset).toDouble)
   }
 }

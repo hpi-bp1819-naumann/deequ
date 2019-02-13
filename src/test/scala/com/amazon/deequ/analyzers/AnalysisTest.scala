@@ -192,7 +192,7 @@ class AnalysisTest extends WordSpec with Matchers with SparkContextSpec with Fix
 
         val meanException = new IllegalArgumentException("-test-mean-failing-")
         val failingMean = new Mean("att1") {
-          override def fromJdbcRow(result: Row, offset: Int): Option[MeanState] = {
+          override def fromAggregationResult(result: Row, offset: Int): Option[MeanState] = {
             throw meanException
           }
         }
@@ -214,7 +214,7 @@ class AnalysisTest extends WordSpec with Matchers with SparkContextSpec with Fix
 
         val meanException = new IllegalArgumentException("-test-mean-failing-")
         val failingMean = new Mean("att1") {
-          override def fromJdbcRow(result: Row, offset: Int): Option[MeanState] = {
+          override def fromAggregationResult(result: Row, offset: Int): Option[MeanState] = {
             throw meanException
           }
         }
@@ -272,7 +272,7 @@ class AnalysisTest extends WordSpec with Matchers with SparkContextSpec with Fix
 
         val distinctnessException = new IllegalArgumentException("-test-distinctness-failing-")
         val failingDistinctness = new Distinctness("att1" :: Nil) {
-          override def fromJdbcRow(result: Row, offset: Int): DoubleMetric = {
+          override def fromAggregationResult(result: Row, offset: Int): DoubleMetric = {
             throw distinctnessException
           }
         }

@@ -64,7 +64,7 @@ case class ApproxQuantile(column: String, quantile: Double, relativeError: Doubl
     DeequFunctions.stateful_approx_quantile(col(column), relativeError) :: Nil
   }
 
-  override private[deequ] def fromJdbcRow(
+  override private[deequ] def fromAggregationResult(
       result: Row, offset: Int)
     : Option[ApproxQuantileState] = {
 

@@ -37,7 +37,7 @@ import org.apache.spark.sql.{Column, Row}
 case class Compliance(instance: String, predicate: String, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance) {
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
 
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))

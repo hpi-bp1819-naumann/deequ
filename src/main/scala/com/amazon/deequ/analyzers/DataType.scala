@@ -158,7 +158,7 @@ case class DataType(
     stateful_datatype(conditionalSelection(column, where)) :: Nil
   }
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[DataTypeHistogram] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[DataTypeHistogram] = {
     ifNoNullsIn(result, offset) { _ =>
       DataTypeHistogram.fromBytes(result.getAs[Array[Byte]](offset))
     }

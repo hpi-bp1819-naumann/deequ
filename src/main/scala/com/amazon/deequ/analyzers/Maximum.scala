@@ -40,7 +40,7 @@ case class Maximum(column: String, where: Option[String] = None)
     max(conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[MaxState] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[MaxState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MaxState(result.getDouble(offset))

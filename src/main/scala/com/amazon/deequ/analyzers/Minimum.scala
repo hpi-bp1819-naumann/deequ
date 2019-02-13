@@ -40,7 +40,7 @@ case class Minimum(column: String, where: Option[String] = None)
     min(conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[MinState] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[MinState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MinState(result.getDouble(offset))

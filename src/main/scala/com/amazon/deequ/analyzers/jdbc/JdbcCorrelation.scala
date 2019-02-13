@@ -56,7 +56,7 @@ case class JdbcCorrelation(
 
   }
 
-  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[CorrelationState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[CorrelationState] = {
     ifNoNullsIn(result, offset, 8) { _ =>
       val numRows = result.getDouble(5)
       val sumFirstTimesSecond = result.getDouble(0)

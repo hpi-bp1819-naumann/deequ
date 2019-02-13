@@ -31,7 +31,7 @@ case class JdbcUniqueValueRatio(columns: Seq[String])
       conditionalCount(noNullValue) :: Nil
   }
 
-  override def fromJdbcRow(result: JdbcRow, offset: Int): DoubleMetric = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
     if (result.getDouble(offset + 1) == 0) {
       emptyFailureMetric()
     } else {

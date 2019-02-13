@@ -40,7 +40,7 @@ case class Size(where: Option[String] = None)
     conditionalCount(where) :: Nil
   }
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[NumMatches] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatches] = {
     ifNoNullsIn(result, offset) { _ =>
       NumMatches(result.getLong(offset))
     }

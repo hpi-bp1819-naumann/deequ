@@ -28,7 +28,7 @@ case class JdbcMaximum(column: String, where: Option[String] = None)
     s"MAX(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[MaxState] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[MaxState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MaxState(result.getDouble(offset))

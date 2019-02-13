@@ -77,7 +77,7 @@ case class Correlation(
     stateful_corr(firstSelection, secondSelection) :: Nil
   }
 
-  override def fromJdbcRow(result: Row, offset: Int): Option[CorrelationState] = {
+  override def fromAggregationResult(result: Row, offset: Int): Option[CorrelationState] = {
 
     if (result.isNullAt(offset)) {
       None

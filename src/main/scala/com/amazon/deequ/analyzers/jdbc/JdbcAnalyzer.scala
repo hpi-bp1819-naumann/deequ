@@ -90,17 +90,7 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   : M = {
 
     // Try to load the state
-    val loadedState: Option[S] = aggregateWith.flatMap { stateLoader =>
-      if (state.isDefined) {
-        state.get match {
-          case freqState: JdbcFrequenciesAndNumRows =>
-            stateLoader.load[S](this, Some(freqState.table.jdbcConnection))
-          case _ => stateLoader.load[S](this)
-        }
-      } else {
-        None
-      }
-    }
+    val loadedState: Option[S] = aggregateWith.flatMap { _.load[S](this) }
 
     // Potentially merge existing and loaded state
     val stateToComputeMetricFrom: Option[S] = JdbcAnalyzers.merge(state, loadedState)
@@ -150,31 +140,31 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
   private[deequ] def aggregationFunctions(): Seq[String]
 
   /** Computes the state from the result of the aggregation functions */
-  private[deequ] def fromJdbcRow(result: JdbcRow, offset: Int): Option[S]
+  private[deequ] def fromAggregationResult(result: JdbcRow, offset: Int): Option[S]
 
   /** Runs aggregation functions directly, without scan sharing */
   override def computeStateFrom(data: Table): Option[S] = {
     val aggregations = aggregationFunctions()
     val result = data.executeAggregations(aggregations)
-    val state = fromJdbcRow(result, 0)
+    val state = fromAggregationResult(result, 0)
     state
   }
 
   /** Produces a metric from the aggregation result */
-  private[deequ] def metricFromJdbcRow(
+  private[deequ] def metricFromAggregationResult(
       result: JdbcRow,
       offset: Int,
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None)
   : M = {
 
-    val state = fromJdbcRow(result, offset)
+    val state = fromAggregationResult(result, offset)
 
     calculateMetric(state, aggregateWith, saveStatesWith)
   }
 
   override def preconditions: Seq[Table => Unit] = {
-    super.preconditions ++ additionalPreconditions()
+    additionalPreconditions() ++ super.preconditions
   }
 
   protected def additionalPreconditions(): Seq[Table => Unit] = {
@@ -212,7 +202,7 @@ abstract class JdbcGroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends Jdbc
 
   /** Ensure that the grouping columns exist in the data */
   override def preconditions: Seq[Table => Unit] = {
-    super.preconditions ++ groupingColumns().map { name => Preconditions.hasColumn(name) }
+    groupingColumns().map { name => Preconditions.hasColumn(name) } ++ super.preconditions
   }
 }
 
@@ -244,9 +234,10 @@ object Preconditions {
   /** Specified table exists in the data */
   def hasTable(): Table => Unit = { table =>
 
-    val metaData = table.jdbcConnection.getMetaData
-    val result = metaData.getTables(null, null,
-      null, Array[String]("TABLE"))
+    val connection = table.jdbcConnection
+
+    val metaData = connection.getMetaData
+    val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
 
     var hasTable = false
 
@@ -279,6 +270,8 @@ object Preconditions {
   /** Specified column exists in the table */
   def hasColumn(column: String): Table => Unit = { table =>
 
+    val connection = table.jdbcConnection
+
     val query =
       s"""
          |SELECT
@@ -288,7 +281,7 @@ object Preconditions {
          |LIMIT 0
       """.stripMargin
 
-    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
       ResultSet.CONCUR_READ_ONLY)
 
     val result = statement.executeQuery()
@@ -310,6 +303,8 @@ object Preconditions {
   /** data type of specified column */
   def getColumnDataType(table: Table, column: String): Int = {
 
+    val connection = table.jdbcConnection
+
     val query =
       s"""
          |SELECT
@@ -319,7 +314,7 @@ object Preconditions {
          |LIMIT 0
       """.stripMargin
 
-    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
       ResultSet.CONCUR_READ_ONLY)
 
     val result = statement.executeQuery()

@@ -23,7 +23,7 @@ import com.amazon.deequ.analyzers.jdbc.Preconditions.hasColumn
 case class JdbcCompleteness(column: String, where: Option[String] = None) extends
   JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("Completeness", column) {
 
-  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
 
     /** check whether the table was empty or not */
     if (result.getLong(offset + 1) == 0) {
