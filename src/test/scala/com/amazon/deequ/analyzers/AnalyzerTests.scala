@@ -17,7 +17,6 @@
 package com.amazon.deequ
 package analyzers
 
-import com.amazon.deequ.analyzers.DataType
 import com.amazon.deequ.analyzers.runners.NoSuchColumnException
 import com.amazon.deequ.metrics.{Distribution, DistributionValue, DoubleMetric, Entity}
 import com.amazon.deequ.utils.AssertionUtils.TryUtils
