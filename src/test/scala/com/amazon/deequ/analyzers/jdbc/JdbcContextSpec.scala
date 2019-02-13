@@ -27,7 +27,7 @@ import org.sqlite.{Function, SQLiteConfig}
   */
 trait JdbcContextSpec {
 
-  val jdbcUrl = "jdbc:sqlite:analyzerTests.db?mode=memory&cache=shared"
+  val jdbcUrl = "jdbc:sqlite:memory:"
 
   def withJdbc(testFunc: Connection => Unit): Unit = {
 
