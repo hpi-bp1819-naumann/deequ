@@ -26,8 +26,8 @@ trait FixtureSupport {
 
   def getDfEmpty(sparkSession: SparkSession): DataFrame = {
     import sparkSession.implicits._
-    val column1 = $"column1".string
-    val column2 = $"column2".string
+    val column1 = $"att1".string
+    val column2 = $"att2".string
     val mySchema = StructType(column1 :: column2 :: Nil)
 
     sparkSession.createDataFrame(sparkSession.sparkContext.emptyRDD[Row], mySchema)

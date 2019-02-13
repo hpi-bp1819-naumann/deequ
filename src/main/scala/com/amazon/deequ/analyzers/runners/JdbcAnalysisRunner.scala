@@ -344,7 +344,7 @@ object JdbcAnalysisRunner {
     : Metric[_] = {
 
     try {
-      analyzer.metricFromAggregationResult(aggregationResult, offset, aggregateWith, saveStatesTo)
+      analyzer.metricFromJdbcRow(aggregationResult, offset, aggregateWith, saveStatesTo)
     } catch {
       case error: Exception => analyzer.toFailureMetric(error)
     }
@@ -360,7 +360,7 @@ object JdbcAnalysisRunner {
     : Metric[_] = {
 
     try {
-      analyzer.fromAggregationResult(aggregationResult, offset)
+      analyzer.fromJdbcRow(aggregationResult, offset)
     } catch {
       case error: Exception => analyzer.toFailureMetric(error)
     }

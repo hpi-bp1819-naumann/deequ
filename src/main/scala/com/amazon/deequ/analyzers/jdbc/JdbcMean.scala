@@ -28,7 +28,7 @@ case class JdbcMean(column: String, where: Option[String] = None)
       s"COUNT(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[MeanState] = {
+  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[MeanState] = {
 
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       MeanState(result.getDouble(offset), result.getLong(offset + 1))

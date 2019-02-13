@@ -162,24 +162,24 @@ trait ScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends Analyzer[S, 
   private[deequ] def aggregationFunctions(): Seq[Column]
 
   /** Computes the state from the result of the aggregation functions */
-  private[deequ] def fromAggregationResult(result: Row, offset: Int): Option[S]
+  private[deequ] def fromJdbcRow(result: Row, offset: Int): Option[S]
 
   /** Runs aggregation functions directly, without scan sharing */
   override def computeStateFrom(data: DataFrame): Option[S] = {
     val aggregations = aggregationFunctions()
     val result = data.agg(aggregations.head, aggregations.tail: _*).collect().head
-    fromAggregationResult(result, 0)
+    fromJdbcRow(result, 0)
   }
 
   /** Produces a metric from the aggregation result */
-  private[deequ] def metricFromAggregationResult(
+  private[deequ] def metricFromJdbcRow(
       result: Row,
       offset: Int,
       aggregateWith: Option[StateLoader] = None,
       saveStatesWith: Option[StatePersister] = None)
     : M = {
 
-    val state = fromAggregationResult(result, offset)
+    val state = fromJdbcRow(result, offset)
 
     calculateMetric(state, aggregateWith, saveStatesWith)
   }
@@ -241,7 +241,7 @@ abstract class PredicateMatchingAnalyzer(
     where: Option[String])
   extends StandardScanShareableAnalyzer[NumMatchesAndCount](name, instance) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromJdbcRow(result: Row, offset: Int): Option[NumMatchesAndCount] = {
 
     if (result.isNullAt(offset) || result.isNullAt(offset + 1)) {
       None

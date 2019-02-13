@@ -40,7 +40,7 @@ case class Sum(column: String, where: Option[String] = None)
     sum(conditionalSelection(column, where)).cast(DoubleType) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[SumState] = {
+  override def fromJdbcRow(result: Row, offset: Int): Option[SumState] = {
     ifNoNullsIn(result, offset) { _ =>
       SumState(result.getDouble(offset))
     }

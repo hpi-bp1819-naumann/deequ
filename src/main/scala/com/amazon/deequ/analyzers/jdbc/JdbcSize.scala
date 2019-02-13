@@ -31,7 +31,7 @@ case class JdbcSize(where: Option[String] = None)
     JdbcAnalyzers.conditionalCount(where) :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatches] = {
+  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[NumMatches] = {
     JdbcAnalyzers.ifNoNullsIn(result, offset) { _ =>
       NumMatches(result.getLong(offset))
     }

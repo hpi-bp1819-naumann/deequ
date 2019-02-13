@@ -29,7 +29,7 @@ case class UniqueValueRatio(columns: Seq[String])
     sum(col(COUNT_COL).equalTo(lit(1)).cast(DoubleType)) :: count("*") :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): DoubleMetric = {
+  override def fromJdbcRow(result: Row, offset: Int): DoubleMetric = {
     val numUniqueValues = result.getDouble(offset)
     val numDistinctValues = result.getLong(offset + 1).toDouble
 

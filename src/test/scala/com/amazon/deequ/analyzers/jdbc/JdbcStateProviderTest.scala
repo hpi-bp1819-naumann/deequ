@@ -25,11 +25,11 @@ class JdbcStateProviderTest
 
   "Analyzers" should {
 
-    "correctly restore their state from memory" in {
+    "correctly restore their state from memory" in withJdbc { connection =>
 
       val provider = JdbcInMemoryStateProvider()
 
-      val data = getTableWithPricedItems()
+      val data = getTableWithPricedItems(connection)
 
       assertCorrectlyRestoresState[NumMatches](provider, provider, JdbcSize(), data)
       assertCorrectlyRestoresState[NumMatchesAndCount](provider, provider,
@@ -53,13 +53,13 @@ class JdbcStateProviderTest
       assertCorrectlyRestoresFrequencyBasedState(provider, provider, JdbcEntropy("att1"), data)
     }
 
-    "correctly restore their state from the filesystem" in {
+    "correctly restore their state from the filesystem" in withJdbc { connection =>
 
       val tempDir: String = TempFileUtils.tempDir("stateRestoration")
 
       val provider = JdbcFileSystemStateProvider(tempDir)
 
-      val data = getTableWithPricedItems()
+      val data = getTableWithPricedItems(connection)
 
       assertCorrectlyRestoresState[NumMatches](provider, provider, JdbcSize(), data)
       assertCorrectlyRestoresState[NumMatchesAndCount](provider, provider,
@@ -95,7 +95,7 @@ class JdbcStateProviderTest
     val state = stateResult.get
 
     persister.persist[S](analyzer, state)
-    val clonedState = loader.load[S](analyzer)
+    val clonedState = loader.load[S](analyzer, Some(table.jdbcConnection))
 
     assert(clonedState.isDefined)
     assert(state == clonedState.get)
@@ -112,7 +112,7 @@ class JdbcStateProviderTest
     val state = stateResult.get
 
     persister.persist[JdbcFrequenciesAndNumRows](analyzer, state)
-    val clonedState = loader.load[JdbcFrequenciesAndNumRows](analyzer)
+    val clonedState = loader.load[JdbcFrequenciesAndNumRows](analyzer, Some(table.jdbcConnection))
 
     assert(clonedState.isDefined)
     assert(state.numRows == clonedState.get.numRows)

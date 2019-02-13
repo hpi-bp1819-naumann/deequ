@@ -28,7 +28,7 @@ case class JdbcMinimum(column: String, where: Option[String] = None)
     s"MIN(${conditionalSelection(column, where)})" :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[MinState] = {
+  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[MinState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       MinState(result.getDouble(offset))

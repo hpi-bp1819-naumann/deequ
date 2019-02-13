@@ -18,7 +18,7 @@ package com.amazon.deequ.analyzers.jdbc
 
 import java.sql.{Connection, ResultSet}
 
-import com.amazon.deequ.analyzers.State
+import com.amazon.deequ.analyzers.{Analyzers, State}
 
 import scala.collection.mutable
 
@@ -32,7 +32,9 @@ case class JdbcFrequenciesAndNumRows(table: Table,
     _numNulls match {
       case None =>
         val firstGroupingColumn = table.columns().head._1
-        val numNulls = s"SUM(CASE WHEN ($firstGroupingColumn = NULL) THEN absolute ELSE 0 END)"
+
+        val numNulls =
+          s"SUM(CASE WHEN ($firstGroupingColumn IS NULL) THEN ${Analyzers.COUNT_COL} ELSE 0 END)"
 
         val result = table.executeAggregations(numNulls :: Nil)
 
@@ -46,7 +48,7 @@ case class JdbcFrequenciesAndNumRows(table: Table,
   def numRows(): Long = {
     _numRows match {
       case None =>
-        val numRows = s"SUM(absolute)"
+        val numRows = s"SUM(${Analyzers.COUNT_COL})"
 
         val result = table.executeAggregations(numRows :: Nil)
 
@@ -59,32 +61,28 @@ case class JdbcFrequenciesAndNumRows(table: Table,
 
   def frequencies(): (mutable.LinkedHashMap[String, String], Map[Seq[String], Long]) = {
 
-    table.withJdbc[(mutable.LinkedHashMap[String, String], Map[Seq[String], Long])] {
-      connection: Connection =>
+    var frequencies = Map[Seq[String], Long]()
 
-        var frequencies = Map[Seq[String], Long]()
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | ${table.name}
+  """.stripMargin
 
-        val query =
-          s"""
-             |SELECT
-             | *
-             |FROM
-             | ${table.name}
-      """.stripMargin
+    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-        val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-          ResultSet.CONCUR_READ_ONLY)
+    val result = statement.executeQuery()
+    val numGroupingColumns = result.getMetaData.getColumnCount - 1
 
-        val result = statement.executeQuery()
-        val numGroupingColumns = result.getMetaData.getColumnCount - 1
-
-        while (result.next()) {
-          val columns = (1 to numGroupingColumns).map(col => result.getString(col)).seq
-          frequencies += (columns -> result.getLong(numGroupingColumns + 1))
-        }
-
-        (table.columns(), frequencies)
+    while (result.next()) {
+      val columns = (1 to numGroupingColumns).map(col => result.getString(col)).seq
+      frequencies += (columns -> result.getLong(numGroupingColumns + 1))
     }
+
+    (table.columns(), frequencies)
   }
 
   override def sum(other: JdbcFrequenciesAndNumRows): JdbcFrequenciesAndNumRows = {
@@ -96,14 +94,14 @@ case class JdbcFrequenciesAndNumRows(table: Table,
   }
 }
 
-import com.amazon.deequ.analyzers.jdbc.JdbcFrequencyBasedAnalyzerUtils._
-
 object JdbcFrequenciesAndNumRows {
 
-  def from(columns: mutable.LinkedHashMap[String, String],
+  def from(connection: Connection,
+           columns: mutable.LinkedHashMap[String, String],
            frequencies: Map[Seq[String], Long], numRows: Long): JdbcFrequenciesAndNumRows = {
 
-    val table = Table.createAndFill(newDefaultTable(), columns, frequencies)
+    val table = Table(JdbcFrequencyBasedAnalyzerUtils.uniqueTableName(), connection)
+    Table.createAndFill(table, columns, frequencies)
 
     JdbcFrequenciesAndNumRows(table, Some(numRows))
   }

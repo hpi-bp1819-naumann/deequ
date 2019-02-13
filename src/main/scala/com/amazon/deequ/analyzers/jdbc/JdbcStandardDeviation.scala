@@ -31,7 +31,7 @@ case class JdbcStandardDeviation(column: String, where: Option[String] = None)
       s"SUM(POWER(${conditionalSelection(column, where)}, 2))" :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int)
+  override def fromJdbcRow(result: JdbcRow, offset: Int)
     : Option[StandardDeviationState] = {
       ifNoNullsIn(result, offset, 3) { _ =>
         val num_rows = result.getDouble(offset)

@@ -90,7 +90,17 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   : M = {
 
     // Try to load the state
-    val loadedState: Option[S] = aggregateWith.flatMap { _.load[S](this) }
+    val loadedState: Option[S] = aggregateWith.flatMap { stateLoader =>
+      if (state.isDefined) {
+        state.get match {
+          case freqState: JdbcFrequenciesAndNumRows =>
+            stateLoader.load[S](this, Some(freqState.table.jdbcConnection))
+          case _ => stateLoader.load[S](this)
+        }
+      } else {
+        None
+      }
+    }
 
     // Potentially merge existing and loaded state
     val stateToComputeMetricFrom: Option[S] = JdbcAnalyzers.merge(state, loadedState)
@@ -140,31 +150,31 @@ trait JdbcScanShareableAnalyzer[S <: State[_], +M <: Metric[_]] extends JdbcAnal
   private[deequ] def aggregationFunctions(): Seq[String]
 
   /** Computes the state from the result of the aggregation functions */
-  private[deequ] def fromAggregationResult(result: JdbcRow, offset: Int): Option[S]
+  private[deequ] def fromJdbcRow(result: JdbcRow, offset: Int): Option[S]
 
   /** Runs aggregation functions directly, without scan sharing */
   override def computeStateFrom(data: Table): Option[S] = {
     val aggregations = aggregationFunctions()
     val result = data.executeAggregations(aggregations)
-    val state = fromAggregationResult(result, 0)
+    val state = fromJdbcRow(result, 0)
     state
   }
 
   /** Produces a metric from the aggregation result */
-  private[deequ] def metricFromAggregationResult(
+  private[deequ] def metricFromJdbcRow(
       result: JdbcRow,
       offset: Int,
       aggregateWith: Option[JdbcStateLoader] = None,
       saveStatesWith: Option[JdbcStatePersister] = None)
   : M = {
 
-    val state = fromAggregationResult(result, offset)
+    val state = fromJdbcRow(result, offset)
 
     calculateMetric(state, aggregateWith, saveStatesWith)
   }
 
   override def preconditions: Seq[Table => Unit] = {
-    additionalPreconditions() ++ super.preconditions
+    super.preconditions ++ additionalPreconditions()
   }
 
   protected def additionalPreconditions(): Seq[Table => Unit] = {
@@ -202,7 +212,7 @@ abstract class JdbcGroupingAnalyzer[S <: State[_], +M <: Metric[_]] extends Jdbc
 
   /** Ensure that the grouping columns exist in the data */
   override def preconditions: Seq[Table => Unit] = {
-    groupingColumns().map { name => Preconditions.hasColumn(name) } ++ super.preconditions
+    super.preconditions ++ groupingColumns().map { name => Preconditions.hasColumn(name) }
   }
 }
 
@@ -234,22 +244,20 @@ object Preconditions {
   /** Specified table exists in the data */
   def hasTable(): Table => Unit = { table =>
 
-    table.withJdbc { connection =>
+    val metaData = table.jdbcConnection.getMetaData
+    val result = metaData.getTables(null, null,
+      null, Array[String]("TABLE"))
 
-      val metaData = connection.getMetaData
-      val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
+    var hasTable = false
 
-      var hasTable = false
-
-      while (result.next()) {
-        if (result.getString("TABLE_NAME") == table.name) {
-          hasTable = true
-        }
+    while (result.next()) {
+      if (result.getString("TABLE_NAME") == table.name) {
+        hasTable = true
       }
+    }
 
-      if (!hasTable) {
-        throw new NoSuchTableException(s"Input data does not include table ${table.name}!")
-      }
+    if (!hasTable) {
+      throw new NoSuchTableException(s"Input data does not include table ${table.name}!")
     }
   }
 
@@ -271,61 +279,53 @@ object Preconditions {
   /** Specified column exists in the table */
   def hasColumn(column: String): Table => Unit = { table =>
 
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | ${table.name}
+         |LIMIT 0
+      """.stripMargin
 
-    table.withJdbc { connection =>
+    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-      val query =
-        s"""
-           |SELECT
-           | *
-           |FROM
-           | ${table.name}
-           |LIMIT 0
-        """.stripMargin
+    val result = statement.executeQuery()
+    val metaData = result.getMetaData
 
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
+    var hasColumn = false
 
-      val result = statement.executeQuery()
-      val metaData = result.getMetaData
-
-      var hasColumn = false
-
-      for (i <- 1 to metaData.getColumnCount) {
-        if (metaData.getColumnName(i) == column) {
-          hasColumn = true
-        }
+    for (i <- 1 to metaData.getColumnCount) {
+      if (metaData.getColumnName(i) == column) {
+        hasColumn = true
       }
+    }
 
-      if (!hasColumn) {
-        throw new NoSuchColumnException(s"Input data does not include column $column!")
-      }
+    if (!hasColumn) {
+      throw new NoSuchColumnException(s"Input data does not include column $column!")
     }
   }
 
   /** data type of specified column */
   def getColumnDataType(table: Table, column: String): Int = {
 
+    val query =
+      s"""
+         |SELECT
+         | $column
+         |FROM
+         | ${table.name}
+         |LIMIT 0
+      """.stripMargin
 
-    table.withJdbc { connection =>
+    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-      val query =
-        s"""
-           |SELECT
-           | $column
-           |FROM
-           | ${table.name}
-           |LIMIT 0
-        """.stripMargin
+    val result = statement.executeQuery()
 
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
-
-      val result = statement.executeQuery()
-
-      val metaData = result.getMetaData
-      metaData.getColumnType(1)
-    }
+    val metaData = result.getMetaData
+    metaData.getColumnType(1)
   }
 
   /** Specified column has a numeric type */

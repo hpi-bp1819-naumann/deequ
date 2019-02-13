@@ -37,7 +37,7 @@ import scala.util.matching.Regex
 case class PatternMatch(column: String, pattern: Regex, where: Option[String] = None)
   extends StandardScanShareableAnalyzer[NumMatchesAndCount]("PatternMatch", column) {
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromJdbcRow(result: Row, offset: Int): Option[NumMatchesAndCount] = {
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
       NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1))
     }

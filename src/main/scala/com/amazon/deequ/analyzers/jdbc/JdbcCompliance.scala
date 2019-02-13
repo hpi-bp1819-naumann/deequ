@@ -35,7 +35,7 @@ import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 case class JdbcCompliance(instance: String, predicate: String, where: Option[String] = None)
   extends JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance) {
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
+  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[NumMatchesAndCount] = {
 
     /** check whether the table was empty or not */
     if (result.getLong(offset + 1) == 0) {

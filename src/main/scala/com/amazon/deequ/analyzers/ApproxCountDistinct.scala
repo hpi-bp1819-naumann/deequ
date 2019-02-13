@@ -51,7 +51,7 @@ case class ApproxCountDistinct(column: String, where: Option[String] = None)
     stateful_approx_count_distinct(conditionalSelection(column, where)) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[ApproxCountDistinctState] = {
+  override def fromJdbcRow(result: Row, offset: Int): Option[ApproxCountDistinctState] = {
 
     ifNoNullsIn(result, offset) { _ =>
       DeequHyperLogLogPlusPlusUtils.wordsFromBytes(result.getAs[Array[Byte]](offset))

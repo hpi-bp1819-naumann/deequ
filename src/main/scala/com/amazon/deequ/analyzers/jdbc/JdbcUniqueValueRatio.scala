@@ -16,6 +16,7 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import com.amazon.deequ.analyzers.Analyzers
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.metrics.DoubleMetric
 
@@ -24,17 +25,21 @@ case class JdbcUniqueValueRatio(columns: Seq[String])
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
     val noNullValue = Some(s"${columns.head} IS NOT NULL")
-    val conditions = noNullValue :: Some("absolute = 1") :: Nil
+    val conditions = noNullValue :: Some(s"${Analyzers.COUNT_COL} = 1") :: Nil
 
     s"SUM(${conditionalSelection("1", conditions)})" ::
       conditionalCount(noNullValue) :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
-    val numUniqueValues = result.getDouble(offset)
-    val numDistinctValues = result.getLong(offset + 1).toDouble
+  override def fromJdbcRow(result: JdbcRow, offset: Int): DoubleMetric = {
+    if (result.getDouble(offset + 1) == 0) {
+      emptyFailureMetric()
+    } else {
+      val numUniqueValues = result.getDouble(offset)
+      val numDistinctValues = result.getLong(offset + 1).toDouble
 
-    toSuccessMetric(numUniqueValues / numDistinctValues)
+      toSuccessMetric(numUniqueValues / numDistinctValues)
+    }
   }
 
   override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): DoubleMetric = {

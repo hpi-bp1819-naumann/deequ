@@ -93,7 +93,7 @@ abstract class ScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupO
         val result = theState.frequencies.agg(aggregations.head, aggregations.tail: _*).collect()
           .head
 
-        fromAggregationResult(result, 0)
+        fromJdbcRow(result, 0)
 
       case None =>
         metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
@@ -108,7 +108,7 @@ abstract class ScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupO
     metricFromValue(value, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
   }
 
-  def fromAggregationResult(result: Row, offset: Int): DoubleMetric = {
+  def fromJdbcRow(result: Row, offset: Int): DoubleMetric = {
     if (result.isNullAt(offset)) {
       metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
     } else {

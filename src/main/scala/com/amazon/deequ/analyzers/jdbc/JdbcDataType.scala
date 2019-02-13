@@ -69,7 +69,7 @@ case class JdbcDataType(
     countOccurrencesOf(booleanPattern) :: countOccurrencesOf(nullPattern) :: s"MIN($column)" :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): Option[DataTypeHistogram] = {
+  override def fromJdbcRow(result: JdbcRow, offset: Int): Option[DataTypeHistogram] = {
     ifNoNullsIn(result, offset, 7) { _ =>
       // column at offset + 6 contains minimal value of the column
       val dataType = result.row(offset + 6) match {

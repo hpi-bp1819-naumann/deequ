@@ -18,6 +18,7 @@ package com.amazon.deequ.analyzers.jdbc
 
 import java.sql.ResultSet
 
+import com.amazon.deequ.analyzers.Analyzers
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasTable}
 import com.amazon.deequ.analyzers.runners.{EmptyStateException, IllegalAnalyzerParameterException, MetricCalculationException}
 import com.amazon.deequ.metrics._
@@ -43,61 +44,58 @@ case class JdbcHistogram(column: String,
 
   override def computeStateFrom(table: Table): Option[JdbcFrequenciesAndNumRows] = {
 
-    table.withJdbc[Option[JdbcFrequenciesAndNumRows]] { connection =>
+    val query =
+      s"""
+         | SELECT $column as name, COUNT(*) AS ${Analyzers.COUNT_COL}
+         |    FROM ${table.name}
+         |    GROUP BY $column
+        """.stripMargin
 
-      val query =
-        s"""
-           | SELECT $column as name, COUNT(*) AS absolute
-           |    FROM ${table.name}
-           |    GROUP BY $column
-          """.stripMargin
+    val statement = table.jdbcConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
+    val result = statement.executeQuery()
+    val metaData = result.getMetaData
 
-      val result = statement.executeQuery()
-      val metaData = result.getMetaData
+    val colCount = metaData.getColumnCount
 
-      val colCount = metaData.getColumnCount
-
-      var cols = mutable.LinkedHashMap[String, String]()
-      for (col <- 1 to colCount) {
-        cols(metaData.getColumnLabel(col)) = "TEXT"
-      }
-
-      def convertResult(resultSet: ResultSet,
-                        map: Map[Seq[String], Long],
-                        total: Long): (Map[Seq[String], Long], Long) = {
-        if (result.next()) {
-          val distinctName = result.getObject("name")
-
-          val modifiedName = binningUdf match {
-            case Some(bin) => bin(distinctName)
-            case _ => distinctName
-          }
-
-          val discreteValue = modifiedName match {
-            case null => Seq[String](JdbcHistogram.NullFieldReplacement)
-            case _ => Seq[String](modifiedName.toString)
-          }
-
-          val absolute = result.getLong("absolute")
-
-          val frequency = map.getOrElse(discreteValue, 0L) + absolute
-          val entry = discreteValue -> frequency
-          convertResult(result, map + entry, total + absolute)
-        } else {
-          (map, total)
-        }
-      }
-
-      val frequenciesAndNumRows = convertResult(result, Map[Seq[String], Long](), 0)
-      val frequencies = frequenciesAndNumRows._1
-      val numRows = frequenciesAndNumRows._2
-
-      result.close()
-      Some(JdbcFrequenciesAndNumRows.from(cols, frequencies, numRows))
+    var cols = mutable.LinkedHashMap[String, String]()
+    for (col <- 1 to colCount) {
+      cols(metaData.getColumnLabel(col)) = "TEXT"
     }
+
+    def convertResult(resultSet: ResultSet,
+                      map: Map[Seq[String], Long],
+                      total: Long): (Map[Seq[String], Long], Long) = {
+      if (result.next()) {
+        val distinctName = result.getObject("name")
+
+        val modifiedName = binningUdf match {
+          case Some(bin) => bin(distinctName)
+          case _ => distinctName
+        }
+
+        val discreteValue = modifiedName match {
+          case null => Seq[String](JdbcHistogram.NullFieldReplacement)
+          case _ => Seq[String](modifiedName.toString)
+        }
+
+        val absolute = result.getLong(s"${Analyzers.COUNT_COL}")
+
+        val frequency = map.getOrElse(discreteValue, 0L) + absolute
+        val entry = discreteValue -> frequency
+        convertResult(result, map + entry, total + absolute)
+      } else {
+        (map, total)
+      }
+    }
+
+    val frequenciesAndNumRows = convertResult(result, Map[Seq[String], Long](), 0)
+    val frequencies = frequenciesAndNumRows._1
+    val numRows = frequenciesAndNumRows._2
+
+    result.close()
+    Some(JdbcFrequenciesAndNumRows.from(table.jdbcConnection, cols, frequencies, numRows))
   }
 
   override def computeMetricFrom(state: Option[JdbcFrequenciesAndNumRows]): HistogramMetric = {

@@ -51,7 +51,7 @@ case class StandardDeviation(column: String, where: Option[String] = None)
     stateful_stddev_pop(conditionalSelection(column, where)) :: Nil
   }
 
-  override def fromAggregationResult(result: Row, offset: Int): Option[StandardDeviationState] = {
+  override def fromJdbcRow(result: Row, offset: Int): Option[StandardDeviationState] = {
 
     if (result.isNullAt(offset)) {
       None

@@ -15,6 +15,7 @@
   */
 
 package com.amazon.deequ.analyzers.jdbc
+import com.amazon.deequ.analyzers.Analyzers
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.metrics.DoubleMetric
 
@@ -25,7 +26,8 @@ case class JdbcUniqueness(columns: Seq[String])
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
 
-    val conditions = Some(s"${columns.head} IS NOT NULL") :: Some("absolute = 1") :: Nil
+    val conditions = Some(s"${columns.head} IS NOT NULL") ::
+      Some(s"${Analyzers.COUNT_COL} = 1") :: Nil
     val count = s"COUNT(${conditionalSelection("1", conditions)})"
 
     s"(${toDouble(count)} / $numRows)" :: Nil
@@ -35,9 +37,8 @@ case class JdbcUniqueness(columns: Seq[String])
 
     state match {
       case Some(theState) =>
-        if (theState.numNulls() == theState.numRows) {
-          return metricFromEmpty(this, "Uniqueness",
-            columns.mkString(","), entityFrom(columns))
+        if (theState.numNulls() == theState.numRows()) {
+          return emptyFailureMetric()
         }
       case None =>
     }
