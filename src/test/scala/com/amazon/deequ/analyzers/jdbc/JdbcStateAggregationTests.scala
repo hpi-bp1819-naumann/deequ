@@ -107,7 +107,7 @@ class JdbcStateAggregationTests extends WordSpec with Matchers with JdbcContextS
       Seq(1, "B001RS3C2C", "CATEGORY-0-$ims_facets-0-", "extended", 55, 0),
       Seq(1, "B001RTDRO4", "CATEGORY-0-$ims_facets-0-", "extended", 83, 0))
 
-    fillTableWithData("initialData2", columns, data, connection)
+    fillTableWithData("initialData", columns, data, connection)
   }
 
   def deltaData(connection: Connection): Table = {
