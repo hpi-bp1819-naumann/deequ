@@ -16,9 +16,14 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import java.io.FileReader
 import java.sql.{Connection, ResultSet}
 
+import org.postgresql.copy.CopyManager
+import org.postgresql.core.BaseConnection
+
 import scala.collection.mutable
+import scala.io.Source
 
 case class Table (name: String,
                   jdbcConnection: Connection) {
@@ -76,6 +81,19 @@ case class Table (name: String,
 
 object Table {
 
+  def fromCsv(table: Table,
+              csvFilePath: String,
+              delimiter: String = ","): Table = {
+
+    val src = Source.fromFile(csvFilePath)
+    var cols = mutable.LinkedHashMap[String, String]()
+
+    src.getLines().next().split(delimiter).foreach(colName => cols += (colName -> "TEXT"))
+
+    create(table, cols)
+    fillWithCsv(table, csvFilePath, delimiter)
+  }
+
   def create(table: Table,
              columns: mutable.LinkedHashMap[String, String]): Table = {
 
@@ -100,7 +118,7 @@ object Table {
     table
   }
 
-  def fill(table: Table,
+  protected def fill(table: Table,
            columns: mutable.LinkedHashMap[String, String],
            frequencies: Map[Seq[String], Long]): Table = {
 
@@ -124,6 +142,13 @@ object Table {
     table
   }
 
+  protected def fillWithCsv(table: Table, csvFilePath: String, delimiter: String = ",") : Table = {
+    val copMan = new CopyManager(table.jdbcConnection.asInstanceOf[BaseConnection])
+    val fileReader = new FileReader(csvFilePath)
+    copMan.copyIn(s"COPY ${table.name} FROM STDIN DELIMITER '$delimiter' CSV HEADER", fileReader)
+    table
+  }
+
   def createAndFill(table: Table,
                     columns: mutable.LinkedHashMap[String, String],
                     frequencies: Map[Seq[String], Long]): Table = {
@@ -132,6 +157,7 @@ object Table {
     fill(table, columns, frequencies)
   }
 }
+
 
 case class JdbcRow(row: Seq[Any]) {
 

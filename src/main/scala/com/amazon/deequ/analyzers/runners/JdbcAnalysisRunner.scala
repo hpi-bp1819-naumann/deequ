@@ -44,13 +44,30 @@ private[deequ] case class JdbcAnalysisRunnerFileOutputOptions(
   */
 object JdbcAnalysisRunner {
 
-   /**
+  /**
     * Starting point to construct an AnalysisRun.
     *
     * @param data tabular data on which the checks should be verified
     */
   def onData(table: Table): JdbcAnalysisRunBuilder = {
     new JdbcAnalysisRunBuilder(table)
+  }
+
+  /**
+    * Starting point to construct an AnalysisRun on CSV Data.
+    *
+    * @param table table the CSV data will be copied into
+    * @param csvFilePath path to the CSV file that contains the data
+    *                    on which the checks should be verified
+    * @param delimiter delimiter of provided CSV file
+    */
+  def onCsvData(table: Table,
+                csvFilePath: String,
+                delimiter: String = ","):
+  JdbcAnalysisRunBuilder = {
+
+    Table.fromCsv(table, csvFilePath, delimiter)
+    onData(table)
   }
 
   /**

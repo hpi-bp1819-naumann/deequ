@@ -18,7 +18,8 @@ package com.amazon.deequ
 
 import com.amazon.deequ.analyzers._
 import com.amazon.deequ.analyzers.applicability.{AnalyzersApplicability, Applicability, CheckApplicability}
-import com.amazon.deequ.analyzers.runners.{AnalysisRunner, AnalysisRunnerRepositoryOptions, AnalyzerContext}
+import com.amazon.deequ.analyzers.runners.AnalysisRunner.onData
+import com.amazon.deequ.analyzers.runners.{AnalysisRunBuilder, AnalysisRunner, AnalysisRunnerRepositoryOptions, AnalyzerContext}
 import com.amazon.deequ.checks.{Check, CheckStatus}
 import com.amazon.deequ.io.DfsUtils
 import com.amazon.deequ.metrics.Metric
@@ -48,6 +49,24 @@ class VerificationSuite {
     */
   def onData(data: DataFrame): VerificationRunBuilder = {
     new VerificationRunBuilder(data)
+  }
+
+  /**
+    * Starting point to construct an AnalysisRun on CSV Data.
+    *
+    * @param csvFilePath path to the CSV file that contains the data
+    *                    on which the checks should be verified
+    * @param session spark session that will be used to run the analyzers
+    * @param delimiter delimiter of provided CSV file
+    */
+  def onCsvData(csvFilePath: String, session: SparkSession,
+                delimiter: String = ","): VerificationRunBuilder = {
+
+    val df = session.read
+      .option("header", "true")
+      .option("delimiter", delimiter)
+      .csv(csvFilePath)
+    onData(df)
   }
 
   /**

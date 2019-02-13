@@ -74,9 +74,28 @@ private[examples] object JdbcBasicExample extends App {
 
 import com.amazon.deequ.analyzers.jdbc._
 
+private[examples] object JdbcBasicAnalysisExampleOnCsv extends App {
+
+  withJdbc { connection =>
+
+    val table = Table("test_csv", connection)
+
+    val currentDirectory = new java.io.File(".").getCanonicalPath
+    val path = s"$currentDirectory/src/main/scala/com/amazon/deequ/examples/csv_data.csv"
+
+    val analysisResult = JdbcAnalysisRunner
+      .onCsvData(table, path)
+      .addAnalyzer(JdbcDataType("att1"))
+      .run()
+
+    println(analysisResult)
+  }
+}
+
 private[examples] object JdbcBasicAnalysisExample extends App {
 
   withJdbc { connection =>
+
     val table = Table("food_des", connection)
     val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
       JdbcUniqueness("fat_factor"), JdbcDistinctness("fat_factor"),

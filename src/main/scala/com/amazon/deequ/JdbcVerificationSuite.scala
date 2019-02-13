@@ -16,9 +16,12 @@
 
 package com.amazon.deequ
 
+import java.sql.Connection
+
 import com.amazon.deequ.analyzers._
 import com.amazon.deequ.analyzers.applicability.{AnalyzersApplicability, Applicability, CheckApplicability}
 import com.amazon.deequ.analyzers.jdbc.{JdbcAnalyzer, JdbcStateLoader, JdbcStatePersister, Table}
+import com.amazon.deequ.analyzers.runners.JdbcAnalysisRunner.onData
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.checks.{Check, JdbcCheck, JdbcCheckStatus}
 import com.amazon.deequ.metrics.Metric
@@ -47,6 +50,22 @@ class JdbcVerificationSuite {
     */
   def onData(data: Table): JdbcVerificationRunBuilder = {
     new JdbcVerificationRunBuilder(data)
+  }
+
+  /**
+    * Starting point to construct an AnalysisRun on CSV Data.
+    *
+    * @param table table the CSV data will be copied into
+    * @param csvFilePath path to the CSV file that contains the data
+    *                    on which the checks should be verified
+    * @param delimiter delimiter of provided CSV file
+    */
+  def onCsvData(table: Table, csvFilePath: String,
+                delimiter: String = ","):
+  JdbcVerificationRunBuilder = {
+
+    Table.fromCsv(table, csvFilePath, delimiter)
+    onData(table)
   }
 
   /**
