@@ -78,7 +78,6 @@ case class Table (name: String,
 }
 
 
-
 object Table {
 
   def fromCsv(table: Table,
@@ -118,7 +117,7 @@ object Table {
     table
   }
 
-  protected def fill(table: Table,
+  private def fill(table: Table,
            columns: mutable.LinkedHashMap[String, String],
            frequencies: Map[Seq[String], Long]): Table = {
 
@@ -142,7 +141,7 @@ object Table {
     table
   }
 
-  protected def fillWithCsv(table: Table, csvFilePath: String, delimiter: String = ",") : Table = {
+  private def fillWithCsv(table: Table, csvFilePath: String, delimiter: String = ",") : Table = {
     val copMan = new CopyManager(table.jdbcConnection.asInstanceOf[BaseConnection])
     val fileReader = new FileReader(csvFilePath)
     copMan.copyIn(s"COPY ${table.name} FROM STDIN DELIMITER '$delimiter' CSV HEADER", fileReader)
