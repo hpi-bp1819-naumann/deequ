@@ -234,22 +234,21 @@ object Preconditions {
   /** Specified table exists in the data */
   def hasTable(): Table => Unit = { table =>
 
-    table.withJdbc { connection =>
+    val connection = table.jdbcConnection
 
-      val metaData = connection.getMetaData
-      val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
+    val metaData = connection.getMetaData
+    val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
 
-      var hasTable = false
+    var hasTable = false
 
-      while (result.next()) {
-        if (result.getString("TABLE_NAME") == table.name) {
-          hasTable = true
-        }
+    while (result.next()) {
+      if (result.getString("TABLE_NAME") == table.name) {
+        hasTable = true
       }
+    }
 
-      if (!hasTable) {
-        throw new NoSuchTableException(s"Input data does not include table ${table.name}!")
-      }
+    if (!hasTable) {
+      throw new NoSuchTableException(s"Input data does not include table ${table.name}!")
     }
   }
 
@@ -271,61 +270,57 @@ object Preconditions {
   /** Specified column exists in the table */
   def hasColumn(column: String): Table => Unit = { table =>
 
+    val connection = table.jdbcConnection
 
-    table.withJdbc { connection =>
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | ${table.name}
+         |LIMIT 0
+      """.stripMargin
 
-      val query =
-        s"""
-           |SELECT
-           | *
-           |FROM
-           | ${table.name}
-           |LIMIT 0
-        """.stripMargin
+    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
+    val result = statement.executeQuery()
+    val metaData = result.getMetaData
 
-      val result = statement.executeQuery()
-      val metaData = result.getMetaData
+    var hasColumn = false
 
-      var hasColumn = false
-
-      for (i <- 1 to metaData.getColumnCount) {
-        if (metaData.getColumnName(i) == column) {
-          hasColumn = true
-        }
+    for (i <- 1 to metaData.getColumnCount) {
+      if (metaData.getColumnName(i) == column) {
+        hasColumn = true
       }
+    }
 
-      if (!hasColumn) {
-        throw new NoSuchColumnException(s"Input data does not include column $column!")
-      }
+    if (!hasColumn) {
+      throw new NoSuchColumnException(s"Input data does not include column $column!")
     }
   }
 
   /** data type of specified column */
   def getColumnDataType(table: Table, column: String): Int = {
 
+    val connection = table.jdbcConnection
 
-    table.withJdbc { connection =>
+    val query =
+      s"""
+         |SELECT
+         | $column
+         |FROM
+         | ${table.name}
+         |LIMIT 0
+      """.stripMargin
 
-      val query =
-        s"""
-           |SELECT
-           | $column
-           |FROM
-           | ${table.name}
-           |LIMIT 0
-        """.stripMargin
+    val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
+      ResultSet.CONCUR_READ_ONLY)
 
-      val statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY,
-        ResultSet.CONCUR_READ_ONLY)
+    val result = statement.executeQuery()
 
-      val result = statement.executeQuery()
-
-      val metaData = result.getMetaData
-      metaData.getColumnType(1)
-    }
+    val metaData = result.getMetaData
+    metaData.getColumnType(1)
   }
 
   /** Specified column has a numeric type */

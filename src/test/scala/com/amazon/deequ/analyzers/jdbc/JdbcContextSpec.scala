@@ -27,22 +27,7 @@ import org.sqlite.{Function, SQLiteConfig}
   */
 trait JdbcContextSpec {
 
-  val jdbcUrl = "jdbc:sqlite::memory:"
-
-  def onConnect(connection: Connection): Unit = {
-    Function.create(connection, "regexp_matches", new Function() {
-      protected def xFunc(): Unit = {
-        val textToMatch = value_text(0)
-        val pattern = value_text(1).r
-
-        pattern.findFirstMatchIn(textToMatch) match {
-          case Some(_) => result(1) // If a match is found, return any value other than NULL
-          case None => result() // If no match is found, return NULL
-        }
-      }
-    })
-  }
-
+  val jdbcUrl = "jdbc:sqlite:analyzerTests.db?mode=memory&cache=shared"
 
   def withJdbc(testFunc: Connection => Unit): Unit = {
 
@@ -61,37 +46,23 @@ trait JdbcContextSpec {
       }
     })
 
+    // Register user defined function for natural logarithm
+    Function.create(connection, "ln", new Function() {
+      protected def xFunc(): Unit = {
+        val num = value_double(0)
+
+        if (num != 0) {
+          result(math.log(num))
+        } else {
+          result()
+        }
+      }
+    })
+
     try {
       testFunc(connection)
     } finally {
       connection.close()
     }
-  }
-
-}
-
-object JdbcContextSpec {
-
-  val jdbcUrl = "jdbc:sqlite:analyzerTests.db?mode=memory&cache=shared"
-
-  def connectionProperties(): Properties = {
-    val sqLiteConfig = new SQLiteConfig()
-    sqLiteConfig.setSharedCache(true)
-
-    sqLiteConfig.toProperties
-  }
-
-  def onConnect(connection: Connection): Unit = {
-    Function.create(connection, "regexp_matches", new Function() {
-      protected def xFunc(): Unit = {
-        val textToMatch = value_text(0)
-        val pattern = value_text(1).r
-
-        pattern.findFirstMatchIn(textToMatch) match {
-          case Some(_) => result(1) // If a match is found, return any value other than NULL
-          case None => result() // If no match is found, return NULL
-        }
-      }
-    })
   }
 }

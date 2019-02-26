@@ -16,6 +16,7 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import com.amazon.deequ.analyzers.Analyzers
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.metrics.DoubleMetric
 
@@ -29,7 +30,7 @@ case class JdbcEntropy(column: String)
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
 
-    val frequency = toDouble("absolute")
+    val frequency = toDouble(s"${Analyzers.COUNT_COL}")
     val conditions = Some(s"$frequency != 0") :: Some(s"$column IS NOT NULL") :: Nil
 
     s"SUM(${conditionalSelection(

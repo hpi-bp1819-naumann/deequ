@@ -16,45 +16,17 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.{Connection, DriverManager, ResultSet}
-import java.util.Properties
+import java.io.FileReader
+import java.sql.{Connection, ResultSet}
+
+import org.postgresql.copy.CopyManager
+import org.postgresql.core.BaseConnection
 
 import scala.collection.mutable
+import scala.io.Source
 
 case class Table (name: String,
-                  jdbcUrl: String,
-                  jdbcConnectionProperties: Properties,
-                  onConnect: Option[Connection => Unit] = None) {
-
-
-  /**
-    * just create a connection when needed
-    * @return the new opened connection
-    */
-  private def createConnection(): Connection = {
-
-    val connection = DriverManager.getConnection(jdbcUrl, jdbcConnectionProperties)
-
-    onConnect match {
-      case Some(theOnConnectFunc) => theOnConnectFunc(connection)
-      case _ =>
-    }
-
-    connection
-  }
-
-
-  private[jdbc] def withJdbc[T](func: Connection => T): T = {
-
-    val connection = createConnection()
-
-    try {
-      func(connection)
-    } finally {
-      connection.close()
-    }
-  }
-
+                  jdbcConnection: Connection) {
 
   /**
     * Builds and executes SQL statement and returns the ResultSet
@@ -64,8 +36,6 @@ case class Table (name: String,
     */
   def executeAggregations(aggregations: Seq[String]): JdbcRow = {
 
-    withJdbc[JdbcRow] { connection: Connection =>
-
       val query =
         s"""
            |SELECT
@@ -74,99 +44,107 @@ case class Table (name: String,
            | $name
         """.stripMargin
 
-      val result = connection.createStatement().executeQuery(query)
+      val result = jdbcConnection.createStatement().executeQuery(query)
       // TODO: Test return value of next() and throw exception
       result.next()
       JdbcRow.from(result)
-    }
   }
 
 
   private[jdbc] def columns(): mutable.LinkedHashMap[String, String] = {
 
+    val query =
+      s"""
+         |SELECT
+         | *
+         |FROM
+         | $name
+         |LIMIT 0
+        """.stripMargin
 
-    withJdbc[mutable.LinkedHashMap[String, String]] { connection: Connection =>
+    val result = jdbcConnection.createStatement().executeQuery(query)
 
-      val query =
-        s"""
-           |SELECT
-           | *
-           |FROM
-           | $name
-           |LIMIT 0
-          """.stripMargin
+    // TODO: Test return value of next() and throw exception
+    val metaData = result.getMetaData
+    val colCount = metaData.getColumnCount
 
-      val result = connection.createStatement().executeQuery(query)
-
-      // TODO: Test return value of next() and throw exception
-      val metaData = result.getMetaData
-      val colCount = metaData.getColumnCount
-
-      var cols = mutable.LinkedHashMap[String, String]()
-      for (col <- 1 to colCount) {
-        cols(metaData.getColumnLabel(col)) = metaData.getColumnTypeName(col)
-      }
-
-      cols
+    var cols = mutable.LinkedHashMap[String, String]()
+    for (col <- 1 to colCount) {
+      cols(metaData.getColumnLabel(col)) = metaData.getColumnTypeName(col)
     }
+
+    cols
   }
 }
 
 
-
 object Table {
+
+  def fromCsv(table: Table,
+              csvFilePath: String,
+              delimiter: String = ","): Table = {
+
+    val src = Source.fromFile(csvFilePath)
+    var cols = mutable.LinkedHashMap[String, String]()
+
+    src.getLines().next().split(delimiter).foreach(colName => cols += (colName -> "TEXT"))
+
+    create(table, cols)
+    fillWithCsv(table, csvFilePath, delimiter)
+  }
 
   def create(table: Table,
              columns: mutable.LinkedHashMap[String, String]): Table = {
 
-    table.withJdbc[Table] { connection: Connection =>
+    val deletionQuery =
+      s"""
+         |DROP TABLE IF EXISTS
+         | ${table.name}
+      """.stripMargin
 
-      val deletionQuery =
-        s"""
-           |DROP TABLE IF EXISTS
-           | ${table.name}
-        """.stripMargin
+    val stmt = table.jdbcConnection.createStatement()
+    stmt.execute(deletionQuery)
 
-      val stmt = connection.createStatement()
-      stmt.execute(deletionQuery)
+    val creationQuery =
+      s"""
+         |CREATE TABLE
+         | ${table.name}
+         |  ${columns map { case (key, value) => s"$key $value" } mkString("(", ",", ")")}
+     """.stripMargin
 
-      val creationQuery =
-        s"""
-           |CREATE TABLE
-           | ${table.name}
-           |  ${columns map { case (key, value) => s"$key $value" } mkString("(", ",", ")")}
-       """.stripMargin
+    stmt.execute(creationQuery)
 
-      stmt.execute(creationQuery)
-
-      table
-    }
+    table
   }
 
-  def fill(table: Table,
+  private def fill(table: Table,
            columns: mutable.LinkedHashMap[String, String],
            frequencies: Map[Seq[String], Long]): Table = {
 
     if (frequencies.nonEmpty) {
 
-      table.withJdbc { connection: Connection =>
+      val values = frequencies.map(entry =>
+        s"(${entry._1.mkString("'", "', '", "'")}, '${entry._2}')").mkString(", ")
 
-        val values = frequencies.map(entry =>
-          s"(${entry._1.mkString("'", "', '", "'")}, '${entry._2}')").mkString(", ")
+      val query =
+        s"""
+           |INSERT INTO
+           | ${table.name} ${columns.keys.mkString("(", ", ", ")")}
+           |VALUES
+           | $values
+       """.stripMargin
 
-        val query =
-          s"""
-             |INSERT INTO
-             | ${table.name} ${columns.keys.mkString("(", ", ", ")")}
-             |VALUES
-             | $values
-         """.stripMargin
-
-        val stmt = connection.createStatement()
-        stmt.execute(query)
-      }
+      val stmt = table.jdbcConnection.createStatement()
+      stmt.execute(query)
     }
 
+    table
+  }
+
+  private def fillWithCsv(table: Table, csvFilePath: String, delimiter: String = ",") : Table = {
+    val copMan = new CopyManager(table.jdbcConnection.asInstanceOf[BaseConnection])
+    val fileReader = new FileReader(csvFilePath)
+    copMan.copyIn(s"COPY ${table.name} FROM STDIN DELIMITER '$delimiter' CSV HEADER", fileReader)
     table
   }
 
@@ -203,16 +181,22 @@ case class JdbcRow(row: Seq[Any]) {
   def getObject(col: Int): Any = {
     row(col)
   }
+
+  def isNullAt(col: Int): Boolean = {
+    row(col) == null
+  }
+
+  def getAs[T](col: Int): T = row(col).asInstanceOf[T]
 }
 
 object JdbcRow {
 
-  def from(resultSet: ResultSet): JdbcRow = {
-    var row = Seq.empty[Object]
-    val numColumns = resultSet.getMetaData.getColumnCount
+  def from(result: ResultSet): JdbcRow = {
+    var row = Seq.empty[Any]
+    val numColumns = result.getMetaData.getColumnCount
 
     for (col <- 1 to numColumns) {
-      row = row :+ resultSet.getObject(col)
+      row = row :+ result.getObject(col)
     }
 
     JdbcRow(row)

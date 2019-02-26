@@ -27,58 +27,83 @@ import com.amazon.deequ.metrics.Metric
 
 private[examples] object JdbcBasicExample extends App {
 
-  val data = Table("example_table", jdbcUrl, connectionProperties())
+  withJdbc { connection =>
+    val data = Table("example_table", connection)
 
-  val verificationResult = JdbcVerificationSuite()
-    .onData(data)
-    .addCheck(
-      JdbcCheck(JdbcCheckLevel.Error, "integrity checks")
-        // we expect 5 records
-        .hasSize(_ == 5)
-        // 'id' should never be NULL
-        .isComplete("id")
-        // 'id' should not contain duplicates
-        .isUnique("id")
-        // 'name' should never be NULL
-        .isComplete("name")
-        // 'priority' should only contain the values "high" and "low"
-        .isContainedIn("priority", Array("high", "low"))
-        // 'numViews' should not contain negative values
-        .isNonNegative("numViews"))
-    .addCheck(
-      JdbcCheck(JdbcCheckLevel.Warning, "distribution checks")
-        // at least half of the 'description's should contain a url
-        .containsURL("description", _ >= 0.5))
-    .run()
+    val verificationResult = JdbcVerificationSuite()
+      .onData(data)
+      .addCheck(
+        JdbcCheck(JdbcCheckLevel.Error, "integrity checks")
+          // we expect 5 records
+          .hasSize(_ == 5)
+          // 'id' should never be NULL
+          .isComplete("id")
+          // 'id' should not contain duplicates
+          .isUnique("id")
+          // 'name' should never be NULL
+          .isComplete("name")
+          // 'priority' should only contain the values "high" and "low"
+          .isContainedIn("priority", Array("high", "low"))
+          // 'numViews' should not contain negative values
+          .isNonNegative("numViews"))
+      .addCheck(
+        JdbcCheck(JdbcCheckLevel.Warning, "distribution checks")
+          // at least half of the 'description's should contain a url
+          .containsURL("description", _ >= 0.5))
+      .run()
 
-  if (verificationResult.status == Success) {
-    println("The data passed the test, everything is fine!")
-  } else {
-    println("We found errors in the data, the following constraints were not satisfied:\n")
+    if (verificationResult.status == Success) {
+      println("The data passed the test, everything is fine!")
+    } else {
+      println("We found errors in the data, the following constraints were not satisfied:\n")
 
-    val resultsForAllConstraints = verificationResult.checkResults
-      .flatMap { case (_, checkResult) => checkResult.constraintResults }
+      val resultsForAllConstraints = verificationResult.checkResults
+        .flatMap { case (_, checkResult) => checkResult.constraintResults }
 
-    resultsForAllConstraints
-      .filter { _.status != JdbcConstraintStatus.Success }
-      .foreach { result =>
-        println(s"${result.constraint} failed: ${result.message.get}")
-      }
+      resultsForAllConstraints
+        .filter {
+          _.status != JdbcConstraintStatus.Success
+        }
+        .foreach { result =>
+          println(s"${result.constraint} failed: ${result.message.get}")
+        }
+    }
   }
 }
 
 
 import com.amazon.deequ.analyzers.jdbc._
 
+private[examples] object JdbcBasicAnalysisExampleOnCsv extends App {
+
+  withJdbc { connection =>
+
+    val table = Table("test_csv", connection)
+
+    val currentDirectory = new java.io.File(".").getCanonicalPath
+    val path = s"$currentDirectory/src/main/scala/com/amazon/deequ/examples/csv_data.csv"
+
+    val analysisResult = JdbcAnalysisRunner
+      .onCsvData(table, path)
+      .addAnalyzer(JdbcDataType("att1"))
+      .run()
+
+    println(analysisResult)
+  }
+}
+
 private[examples] object JdbcBasicAnalysisExample extends App {
 
-  val table = Table("food_des", jdbcUrl, connectionProperties())
-  val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
-    JdbcUniqueness("fat_factor"), JdbcDistinctness("fat_factor"),
-    JdbcSum("fat_factor"), JdbcMinimum("fat_factor"))
+  withJdbc { connection =>
 
-  val analysisResult = JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
+    val table = Table("food_des", connection)
+    val analyzers = Seq[JdbcAnalyzer[_, Metric[_]]](
+      JdbcUniqueness("fat_factor"), JdbcDistinctness("fat_factor"),
+      JdbcSum("fat_factor"), JdbcMinimum("fat_factor"))
 
-  println(analysisResult)
-  // println(JdbcAnalyzerContext.successMetricsAsJson(analysisResult, analyzers))
+    val analysisResult = JdbcAnalysisRunner.doAnalysisRun(table, analyzers)
+
+    println(analysisResult)
+    // println(JdbcAnalyzerContext.successMetricsAsJson(analysisResult, analyzers))
+  }
 }

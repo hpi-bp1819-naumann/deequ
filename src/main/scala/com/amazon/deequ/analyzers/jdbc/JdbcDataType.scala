@@ -16,16 +16,12 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
-import java.sql.Types._
-
-import com.amazon.deequ.analyzers.Analyzers.emptyStateException
+import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
 import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection}
 import com.amazon.deequ.analyzers.runners.{EmptyStateException, MetricCalculationException}
 import com.amazon.deequ.analyzers.{DataTypeHistogram, DataTypeInstances}
 import com.amazon.deequ.metrics.HistogramMetric
 
-import java.sql.ResultSet
-import JdbcAnalyzers._
 import scala.util.{Failure, Success}
 
 case class JdbcDataType(

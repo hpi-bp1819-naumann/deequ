@@ -16,6 +16,7 @@
 
 package com.amazon.deequ.analyzers.jdbc
 
+import java.sql.Connection
 import java.util.concurrent.ConcurrentHashMap
 
 import com.amazon.deequ.analyzers._
@@ -33,7 +34,8 @@ private object StateInformation {
 
 /** Load a stored state for an analyzer */
 trait JdbcStateLoader {
-  def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _]): Option[S]
+  def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _],
+                          connection: Option[Connection] = None): Option[S]
 }
 
 /** Persist a state for an analyzer */
@@ -46,7 +48,8 @@ case class JdbcInMemoryStateProvider() extends JdbcStateLoader with JdbcStatePer
 
   private[this] val statesByAnalyzer = new ConcurrentHashMap[JdbcAnalyzer[_, _], State[_]]()
 
-  override def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _]): Option[S] = {
+  override def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _],
+                                   connection: Option[Connection] = None): Option[S] = {
     Option(statesByAnalyzer.get(analyzer).asInstanceOf[S])
   }
 
@@ -121,7 +124,8 @@ case class JdbcFileSystemStateProvider(
     }
   }
 
-  override def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _]): Option[S] = {
+  override def load[S <: State[_]](analyzer: JdbcAnalyzer[S, _],
+                                   connection: Option[Connection] = None): Option[S] = {
 
     val identifier = toIdentifier(analyzer)
 
@@ -139,15 +143,15 @@ case class JdbcFileSystemStateProvider(
 
       case _ : JdbcMaximum => MaxState(loadDoubleState(identifier))
 
-      case _ : JdbcHistogram => loadFrequenciesLongState(identifier)
+      case _ : JdbcHistogram => loadFrequenciesLongState(identifier, connection)
 
-      case _ : JdbcEntropy => loadFrequenciesLongState(identifier)
+      case _ : JdbcEntropy => loadFrequenciesLongState(identifier, connection)
 
       case _ : JdbcStandardDeviation => loadStandardDeviationState(identifier)
 
       case _ : JdbcCorrelation => loadCorrelationState(identifier)
 
-      case _ : JdbcUniqueness => loadFrequenciesLongState(identifier)
+      case _ : JdbcUniqueness => loadFrequenciesLongState(identifier, connection)
 
       case _ =>
         throw new IllegalArgumentException(s"Unable to load state for analyzer $analyzer.")
@@ -287,7 +291,13 @@ case class JdbcFileSystemStateProvider(
     }
   }
 
-  private[this] def loadFrequenciesLongState(identifier: String): JdbcFrequenciesAndNumRows = {
+  private[this] def loadFrequenciesLongState(identifier: String, connection: Option[Connection]):
+  JdbcFrequenciesAndNumRows = {
+
+    if (connection.isEmpty) {
+      throw new Exception("A Jdbc Connection is required to load State from Disk.")
+    }
+
     LocalDiskUtils.readFromFileOnDisk(s"$locationPrefix-$identifier.bin") { in =>
 
       val numberOfCols = in.readInt()
@@ -331,7 +341,7 @@ case class JdbcFileSystemStateProvider(
 
       val frequencies = readKeyValuePair(Map[Seq[String], Long]())
       val numRows = in.readLong()
-      JdbcFrequenciesAndNumRows.from(columns, frequencies, numRows)
+      JdbcFrequenciesAndNumRows.from(connection.get, columns, frequencies, numRows)
     }
   }
 
