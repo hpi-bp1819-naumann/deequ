@@ -93,7 +93,7 @@ object SanityChecker {
       features: Seq[String],
       featureCompleteness: Double)
   : Check = {
-    val completenessCheck = label.foldLeft(Check(CheckLevel.Warning, "completeness checks")){
+    val completenessCheck = label.foldLeft(Check(CheckLevel.Warning, "completeness checks")) {
       (check, label) => check.isComplete(label)
     }
     features.foldLeft(completenessCheck) { (check, feature) =>
@@ -105,7 +105,7 @@ object SanityChecker {
                                             allowed: Boolean,
                                             valueLists: Map[String, Seq[String]])
   : Check = {
-    if(allowed) {
+    if (allowed) {
       valueLists.foldLeft(Check(CheckLevel.Warning, "whitelist checks")) {
         (check, list) =>
           val allowedValues = list._2.mkString("'", "', '", "'")
