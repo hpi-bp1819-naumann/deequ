@@ -46,7 +46,7 @@ case class ModeMetric(columns: Seq[String], value: Try[Tuple3[String, Double, Do
 
 /**
   * Mode is the most frequent combination of values occurring in the specified columns. If it is
-  * not unique, an arbitrary candidate is chosen.
+  * not unique, an arbitrary candidate is selected.
   */
 case class JdbcMode(columns: Seq[String])
   extends JdbcScanShareableFrequencyBasedAnalyzer("Mode", columns) {
