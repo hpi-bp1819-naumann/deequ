@@ -47,6 +47,5 @@ private[examples] object OneClickSanityCheckExample extends App {
       .run()
 
     SanityReport.print(result)
-    println(SanityReport.toJson(result))
   }
 }
