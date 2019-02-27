@@ -16,10 +16,8 @@
 
 package com.amazon.deequ.sanitychecker
 
-import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.DataFrame
 
-@Experimental
 class SanityCheckerRunner {
 
   def onData(data: DataFrame): SanityCheckerRunBuilder = {

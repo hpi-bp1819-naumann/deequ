@@ -24,16 +24,17 @@ import com.amazon.deequ.profiles.ColumnProfilerRunner
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.StructType
 
-/** Computes single-column profiles in three scans over the data, intented for large (TB) datasets
+/** Performs basic sanity checks on a dataset intended for training a model.
   *
-  * In the first phase, we compute the number of records, as well as the datatype, approx. num
-  * distinct values and the completeness of each column in the sample.
+  * In the first step, the column profiler is run for every column. An exact distinct count can be
+  * requested on demand.
   *
-  * In the second phase, we compute min, max and mean for numeric columns (in the future, we should
-  * add quantiles once they become scan-shareable)
+  * In the second step, the verification suite is run with customizable completeness checks on
+  * feature and label columns. Additional compliance checks for certain whitelisted or blacklisted
+  * values may also be added.
   *
-  * In the third phase, we compute histograms for all columns with less than
-  * `lowCardinalityHistogramThreshold` (approx.) distinct values
+  * A SanityReport containing the customized parameters, the profiling result and the verification
+  * result is returned.
   *
   */
 object SanityChecker {
@@ -102,8 +103,8 @@ object SanityChecker {
   }
 
   private[this] def getValueAllowanceCheck(
-                                            allowed: Boolean,
-                                            valueLists: Map[String, Seq[String]])
+      allowed: Boolean,
+      valueLists: Map[String, Seq[String]])
   : Check = {
     if (allowed) {
       valueLists.foldLeft(Check(CheckLevel.Warning, "whitelist checks")) {
@@ -136,7 +137,7 @@ object SanityChecker {
       schema: StructType,
       label: Option[String],
       restrictToColumns: Option[Seq[String]])
-    : Seq[String] = {
+  : Seq[String] = {
 
     schema.fields
       .filter { field => label.isEmpty || !label.contains(field.name) }
