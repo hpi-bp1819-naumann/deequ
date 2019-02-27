@@ -443,4 +443,31 @@ trait JdbcFixtureSupport {
       )
     fillTableWithData("PricedItems", columns, data, connection)
   }
+
+  def getTableWithUniqueMode(connection: Connection): Table = {
+    val columns = mutable.LinkedHashMap[String, String](
+      "i" -> "Integer")
+    val data =
+      Seq(
+        Seq(3),
+        Seq(3),
+        Seq(1),
+        Seq(2)
+      )
+    fillTableWithData("UniqueMode", columns, data, connection)
+  }
+
+  def getTableWithNotUniqueMode(connection: Connection): Table = {
+    val columns = mutable.LinkedHashMap[String, String](
+      "i" -> "Integer")
+    val data =
+      Seq(
+        Seq(3),
+        Seq(3),
+        Seq(1),
+        Seq(1),
+        Seq(2)
+      )
+    fillTableWithData("NotUniqueMode", columns, data, connection)
+  }
 }
