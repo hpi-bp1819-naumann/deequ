@@ -53,6 +53,24 @@ object AnalysisRunner {
   }
 
   /**
+    * Starting point to construct an AnalysisRun on CSV Data.
+    *
+    * @param csvFilePath path to the CSV file that contains the data
+    *                    on which the checks should be verified
+    * @param session spark session that will be used to run the analyzers
+    * @param delimiter delimiter of provided CSV file
+    */
+  def onCsvData(csvFilePath: String, session: SparkSession,
+                delimiter: String = ","): AnalysisRunBuilder = {
+
+    val df = session.read
+      .option("header", "true")
+      .option("delimiter", delimiter)
+      .csv(csvFilePath)
+    onData(df)
+  }
+
+  /**
     * Compute the metrics from the analyzers configured in the analyis
     *
     * @param data data on which to operate

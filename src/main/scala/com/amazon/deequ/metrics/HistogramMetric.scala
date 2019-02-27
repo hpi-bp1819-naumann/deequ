@@ -21,7 +21,6 @@ import scala.util.{Failure, Success, Try}
 case class DistributionValue(absolute: Long, ratio: Double)
 
 case class Distribution(values: Map[String, DistributionValue], numberOfBins: Long) {
-
   def apply(key: String): DistributionValue = {
     values(key)
   }

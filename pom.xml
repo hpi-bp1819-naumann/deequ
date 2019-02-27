@@ -89,6 +89,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.2.5</version>
+        </dependency>
+
+
+        <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.major.version}</artifactId>
             <version>2.2.6</version>
@@ -109,6 +116,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.25.2</version>
+        </dependency>
+
     </dependencies>
 
 
@@ -116,6 +129,16 @@
         <sourceDirectory>src/main/scala</sourceDirectory>
 
         <plugins>
+            <plugin>
+                <!-- Build an executable JAR -->
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>

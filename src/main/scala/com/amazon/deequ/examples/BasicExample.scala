@@ -16,11 +16,13 @@
 
 package com.amazon.deequ.examples
 
-import ExampleUtils.{withSpark, itemsAsDataframe}
 import com.amazon.deequ.VerificationSuite
-import com.amazon.deequ.checks.{Check, CheckLevel}
+import com.amazon.deequ.analyzers.DataType
+import com.amazon.deequ.analyzers.runners.AnalysisRunner
 import com.amazon.deequ.checks.CheckStatus._
+import com.amazon.deequ.checks.{Check, CheckLevel}
 import com.amazon.deequ.constraints.ConstraintStatus
+import com.amazon.deequ.examples.ExampleUtils.{itemsAsDataframe, withSpark}
 
 private[examples] object BasicExample extends App {
 
@@ -72,5 +74,22 @@ private[examples] object BasicExample extends App {
         }
     }
 
+  }
+}
+
+
+private[examples] object BasicAnalysisExampleOnCsv extends App {
+
+  withSpark { session =>
+
+    val currentDirectory = new java.io.File(".").getCanonicalPath
+    val path = s"$currentDirectory/src/main/scala/com/amazon/deequ/examples/csv_data.csv"
+
+    val analysisResult = AnalysisRunner
+      .onCsvData(path, session)
+      .addAnalyzer(DataType("att1"))
+      .run()
+
+    println(analysisResult)
   }
 }

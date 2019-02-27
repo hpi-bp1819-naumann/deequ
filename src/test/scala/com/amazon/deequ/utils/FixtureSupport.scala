@@ -18,6 +18,7 @@ package com.amazon.deequ.utils
 
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+
 import scala.util.Random
 
 
@@ -25,8 +26,8 @@ trait FixtureSupport {
 
   def getDfEmpty(sparkSession: SparkSession): DataFrame = {
     import sparkSession.implicits._
-    val column1 = $"column1".string
-    val column2 = $"column2".string
+    val column1 = $"att1".string
+    val column2 = $"att2".string
     val mySchema = StructType(column1 :: column2 :: Nil)
 
     sparkSession.createDataFrame(sparkSession.sparkContext.emptyRDD[Row], mySchema)
@@ -187,6 +188,32 @@ trait FixtureSupport {
       .toDF("att1", "att2")
   }
 
+  def getDfWithEmptyStringValues(sparkSession: SparkSession): DataFrame = {
+    import sparkSession.implicits._
+
+    Seq(
+      ("1", ""),
+      ("2", ""),
+      ("3", "x"),
+      ("4", "x"),
+      ("5", "x"),
+      ("6", ""))
+      .toDF("att1", "att2")
+  }
+
+  def getDfWithWhitespace(sparkSession: SparkSession): DataFrame = {
+    import sparkSession.implicits._
+
+    Seq(
+      ("1", "x"),
+      ("2", " "),
+      ("3", " "),
+      ("4", " "),
+      ("5", "x"),
+      ("6", "x"))
+      .toDF("att1", "att2")
+  }
+
   def getDfWithConditionallyUninformativeColumns(sparkSession: SparkSession): DataFrame = {
     import sparkSession.implicits._
     Seq(
@@ -203,6 +230,25 @@ trait FixtureSupport {
       (2, 5),
       (3, 6)
     ).toDF("att1", "att2")
+  }
+
+  def getDfWithInverseNumberedColumns(sparkSession: SparkSession): DataFrame = {
+
+    import sparkSession.implicits._
+      Seq(
+        (1, 6),
+        (2, 5),
+        (3, 4)
+      ).toDF("att1", "att2")
+  }
+
+  def getDfWithPartlyCorrelatedColumns(sparkSession: SparkSession): DataFrame = {
+    import sparkSession.implicits._
+      Seq(
+        (1, 4),
+        (2, 2),
+        (3, 6)
+      ).toDF("att1", "att2")
   }
 
   def getDfWithCategoricalColumn(

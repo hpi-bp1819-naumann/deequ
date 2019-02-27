@@ -19,9 +19,9 @@ package com.amazon.deequ.analyzers
 import com.amazon.deequ.SparkContextSpec
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.utils.FixtureSupport
+import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.{Matchers, WordSpec}
-import org.apache.spark.sql.functions.{expr, rand}
 
 class StateAggregationTests extends WordSpec with Matchers with SparkContextSpec
   with FixtureSupport {
@@ -31,6 +31,10 @@ class StateAggregationTests extends WordSpec with Matchers with SparkContextSpec
     "give correct results" in withSparkSession { session =>
 
       correctlyAggregatesStates(session, Size())
+      correctlyAggregatesStates(session, Maximum("marketplace_id"))
+      correctlyAggregatesStates(session, Minimum("marketplace_id"))
+      correctlyAggregatesStates(session, Mean("marketplace_id"))
+      correctlyAggregatesStates(session, StandardDeviation("marketplace_id"))
       correctlyAggregatesStates(session, Uniqueness("attribute" :: "value" :: Nil))
       correctlyAggregatesStates(session, Distinctness("attribute" :: Nil))
       correctlyAggregatesStates(session, CountDistinct("value" :: Nil))
@@ -40,6 +44,7 @@ class StateAggregationTests extends WordSpec with Matchers with SparkContextSpec
       correctlyAggregatesStates(session, ApproxCountDistinct("attribute"))
       correctlyAggregatesStates(session, MutualInformation("numbersA", "numbersB"))
       correctlyAggregatesStates(session, Correlation("numbersA", "numbersB"))
+      correctlyAggregatesStates(session, Entropy("attribute"))
     }
   }
 

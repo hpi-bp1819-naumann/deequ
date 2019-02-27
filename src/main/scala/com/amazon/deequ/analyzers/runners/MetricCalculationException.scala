@@ -35,6 +35,9 @@ class MetricCalculationPreconditionException(message: String)
   extends MetricCalculationException(message)
 
 
+class NoSuchTableException(message: String)
+  extends MetricCalculationPreconditionException(message)
+
 class NoSuchColumnException(message: String)
   extends MetricCalculationPreconditionException(message)
 
@@ -45,6 +48,9 @@ class NoColumnsSpecifiedException(message: String)
   extends MetricCalculationPreconditionException(message)
 
 class NumberOfSpecifiedColumnsException(message: String)
+  extends MetricCalculationPreconditionException(message)
+
+class SQLInjectionException(message: String)
   extends MetricCalculationPreconditionException(message)
 
 class IllegalAnalyzerParameterException(
