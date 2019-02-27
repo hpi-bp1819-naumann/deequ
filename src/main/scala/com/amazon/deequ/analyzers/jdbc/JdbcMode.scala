@@ -30,8 +30,9 @@ case class JdbcMode(column: String)
   extends JdbcScanShareableFrequencyBasedAnalyzer("Mode", Seq(column)) {
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
-    val mode = s"$column::text"
-    val paddedFrequency = s"LPAD(${Analyzers.COUNT_COL}::text, char_length('$numRows'), '0')"
+    val mode = s"CAST($column AS TEXT)"
+    val frequency = s"CAST(${Analyzers.COUNT_COL} AS TEXT)"
+    val paddedFrequency = s"LPAD($frequency, char_length('$numRows'), '0')"
     s"MAX(CASE WHEN $column IS NOT NULL THEN $paddedFrequency || '|' || $mode ELSE NULL END)" :: Nil
   }
 
