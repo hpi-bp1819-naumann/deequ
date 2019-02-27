@@ -188,23 +188,13 @@ case class JdbcRow(row: Seq[Any]) {
 
   def getAs[T](col: Int): T = row(col).asInstanceOf[T]
 
-  def getString(col: Int): String = {
-    row(col) match {
-      case s: String => s
-      case _ => throw new IllegalArgumentException("No string type")
-    }
-  }
-
   // Converts the result of the Mode analyzer into a tuple that can be accessed more conveniently
-  def getMode(col: Int): Option[Tuple3[String, Double, Double]] = {
+  def getMode(col: Int): Option[Double] = {
     row(col) match {
       case result: String =>
         val components = result.split('|')
-        val frequency = components(0).toDouble
-        val mode = components.slice(1, components.length).mkString("|")
-        val numRows = getString(col + 1).toDouble
-        val ratio = frequency / numRows
-        Some(Tuple3(mode, frequency, ratio))
+        val mode = components(1).toDouble
+        Some(mode)
       case _ => None
     }
   }
