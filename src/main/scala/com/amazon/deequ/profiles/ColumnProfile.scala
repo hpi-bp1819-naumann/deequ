@@ -64,13 +64,13 @@ case class ColumnProfiles(
 
 object ColumnProfiles {
 
-  def toJson(columnProfiles: Seq[ColumnProfile]): String = {
+  private[deequ] def toJsonObject(columnProfiles: Seq[ColumnProfile]): JsonObject = {
 
     val json = new JsonObject()
 
     val columns = new JsonArray()
 
-    columnProfiles.foreach { case profile =>
+    columnProfiles.foreach { profile =>
 
       val columnProfileJson = new JsonObject()
       columnProfileJson.addProperty("column", profile.column)
@@ -137,11 +137,15 @@ object ColumnProfiles {
     }
 
     json.add("columns", columns)
+    json
+  }
+
+  def toJson(columnProfiles: Seq[ColumnProfile]): String = {
 
     val gson = new GsonBuilder()
       .setPrettyPrinting()
       .create()
 
-    gson.toJson(json)
+    gson.toJson(toJsonObject(columnProfiles))
   }
 }

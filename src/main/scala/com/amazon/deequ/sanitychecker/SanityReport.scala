@@ -22,6 +22,7 @@ import com.amazon.deequ.checks.CheckStatus._
 import com.amazon.deequ.constraints.{ConstraintResult, ConstraintStatus}
 import com.amazon.deequ.metrics.DoubleMetric
 import com.amazon.deequ.profiles.{ColumnProfile, ColumnProfiles, NumericColumnProfile}
+import com.google.gson.{GsonBuilder, JsonArray, JsonObject, JsonParser}
 
 /**
   * The result returned from the SanityChecker
@@ -37,6 +38,61 @@ case class SanityReport(
                        )
 
 object SanityReport {
+
+  def toJson(report: SanityReport): String = {
+
+    val json = new JsonObject()
+    val parser = new JsonParser()
+
+    val profiles = ColumnProfiles.toJsonObject(report.profilingResult.profiles.values.toSeq)
+    val checkResults =
+      parser.parse(VerificationResult.checkResultsAsJson(report.verificationResult))
+    val metrics = parser.parse(VerificationResult.successMetricsAsJson(report.verificationResult))
+    val options = optionsToJsonObject(report.sanityCheckerOptions)
+
+    json.add("profiles", profiles)
+    json.add("checkResults", checkResults)
+    json.add("metrics", metrics)
+    json.add("options", options)
+
+    val gson = new GsonBuilder()
+      .setPrettyPrinting()
+      .create()
+
+    gson.toJson(json)
+  }
+
+  def optionsToJsonObject(sanityCheckerOptions: SanityCheckerOptions): JsonObject = {
+
+    val options = new JsonObject()
+    if (sanityCheckerOptions.label.nonEmpty) {
+      options.addProperty("label", sanityCheckerOptions.label.get)
+    }
+    options.addProperty(
+      "featureCompleteness", sanityCheckerOptions.featureCompleteness)
+    if (sanityCheckerOptions.exactDistinctCountForColumns.nonEmpty) {
+      options.addProperty(
+        "exactDistinctCountForColumns",
+        sanityCheckerOptions.exactDistinctCountForColumns.get.mkString(", "))
+    }
+    if (sanityCheckerOptions.columnWhitelists.nonEmpty) {
+      val whitelistJson = new JsonObject()
+      sanityCheckerOptions.columnWhitelists.getOrElse(Seq()).foreach {
+        case (column, whitelist) =>
+          whitelistJson.addProperty(column, whitelist.mkString(", "))
+      }
+      options.add("columnWhitelists", whitelistJson)
+    }
+    if (sanityCheckerOptions.columnBlacklists.nonEmpty) {
+      val blacklistJson = new JsonObject()
+      sanityCheckerOptions.columnBlacklists.getOrElse(Seq()).foreach {
+        case (column, blacklist) =>
+          blacklistJson.addProperty(column, blacklist.mkString(", "))
+      }
+      options.add("columnBlacklists", blacklistJson)
+    }
+    options
+  }
 
   def print(report: SanityReport): Unit = {
     // step 3: output profiles
