@@ -124,18 +124,12 @@ object SanityReport {
                                                profile: ColumnProfile,
                                                distinctCountResults: Map[Seq[String], Int])
   : Unit = {
-    val typeOutput = if (profile.isInstanceOf[NumericColumnProfile]) {
-      "Quantitative"
-    } else {
-      "Qualitative"
-    }
     val distinctOutput = if (distinctCountResults.contains(Seq(name))) {
       s"number of distinct values: ${distinctCountResults(Seq(name))}"
     } else {
       s"approximate number of distinct values: ${profile.approximateNumDistinctValues}"
     }
     println(s"Column '$name':\n " +
-      s"\tcontent type: $typeOutput\n" +
       s"\tcompleteness: ${profile.completeness}\n" +
       s"\t$distinctOutput\n" +
       s"\tdatatype: ${profile.dataType}\n")
