@@ -46,6 +46,24 @@ trait JdbcContextSpec {
       }
     })
 
+    // Register user defined function LPAD
+    Function.create(connection, "LPAD", new Function() {
+      protected def xFunc(): Unit = {
+        val frequency = value_text(0)
+        val length = value_int(1)
+        val replacementCharacter = value_text(2)
+
+        result(s"${replacementCharacter * (length - frequency.length)}$frequency")
+      }
+    })
+
+    // Register user defined function for length of string
+    Function.create(connection, "char_length", new Function() {
+      protected def xFunc(): Unit = {
+        result(value_text(0).length)
+      }
+    })
+
     // Register user defined function for natural logarithm
     Function.create(connection, "ln", new Function() {
       protected def xFunc(): Unit = {
