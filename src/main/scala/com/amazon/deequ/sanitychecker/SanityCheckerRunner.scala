@@ -26,25 +26,17 @@ class SanityCheckerRunner {
 
   private[sanitychecker] def run(
       data: DataFrame,
-      label: Option[String],
-      featureCompleteness: Double,
+      options: SanityCheckerOptions,
       restrictToColumns: Option[Seq[String]],
-      printStatusUpdates: Boolean,
-      exactDistinctCountForColumns: Option[Seq[String]],
-      columnWhitelists: Option[Map[String, Seq[String]]],
-      columnBlacklists: Option[Map[String, Seq[String]]])
+      printStatusUpdates: Boolean)
     : SanityReport = {
 
     val sanityReport = SanityChecker
       .check(
         data,
-        label,
-        featureCompleteness,
+        options,
         restrictToColumns,
-        printStatusUpdates,
-        exactDistinctCountForColumns,
-        columnWhitelists,
-        columnBlacklists
+        printStatusUpdates
       )
 
     sanityReport

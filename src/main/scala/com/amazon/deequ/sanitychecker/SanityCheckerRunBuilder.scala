@@ -26,20 +26,10 @@ class SanityCheckerRunBuilder(val data: DataFrame) {
     SanityChecker.DEFAULT_FEATURE_COMPLETENESS
 
   protected var printStatusUpdates: Boolean = false
-  protected var cacheInputs: Boolean = false
   protected var restrictToColumns: Option[Seq[String]] = None
   protected var exactDistinctCountForColumns: Option[Seq[String]] = None
   protected var columnWhitelists: Option[Map[String, Seq[String]]] = None
   protected var columnBlacklists: Option[Map[String, Seq[String]]] = None
-
-  protected def this(constraintSuggestionRunBuilder: SanityCheckerRunBuilder) {
-
-    this(constraintSuggestionRunBuilder.data)
-
-    printStatusUpdates = constraintSuggestionRunBuilder.printStatusUpdates
-    cacheInputs = constraintSuggestionRunBuilder.cacheInputs
-    restrictToColumns = constraintSuggestionRunBuilder.restrictToColumns
-  }
 
   /**
     * Print status updates between passes
@@ -48,16 +38,6 @@ class SanityCheckerRunBuilder(val data: DataFrame) {
     */
   def printStatusUpdates(printStatusUpdates: Boolean): this.type = {
     this.printStatusUpdates = printStatusUpdates
-    this
-  }
-
-  /**
-    * Cache inputs
-    *
-    * @param cacheInputs Whether to cache inputs
-    */
-  def cacheInputs(cacheInputs: Boolean): this.type = {
-    this.cacheInputs = cacheInputs
     this
   }
 
@@ -126,13 +106,10 @@ class SanityCheckerRunBuilder(val data: DataFrame) {
   def run(): SanityReport = {
    SanityCheckerRunner().run(
       data,
-      label,
-      featureCompleteness,
+      SanityCheckerOptions(label, featureCompleteness, exactDistinctCountForColumns,
+        columnWhitelists, columnBlacklists),
       restrictToColumns,
-      printStatusUpdates,
-      exactDistinctCountForColumns,
-      columnWhitelists,
-      columnBlacklists
+      printStatusUpdates
     )
   }
 }

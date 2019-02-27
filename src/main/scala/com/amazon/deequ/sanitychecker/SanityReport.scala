@@ -17,9 +17,9 @@
 package com.amazon.deequ.sanitychecker
 
 import com.amazon.deequ.VerificationResult
+import com.amazon.deequ.analyzers.CountDistinct
 import com.amazon.deequ.checks.CheckStatus._
-import com.amazon.deequ.analyzers.{Completeness, Compliance, CountDistinct}
-import com.amazon.deequ.constraints.{AnalysisBasedConstraint, ConstraintResult, ConstraintStatus}
+import com.amazon.deequ.constraints.{ConstraintResult, ConstraintStatus}
 import com.amazon.deequ.metrics.DoubleMetric
 import com.amazon.deequ.profiles.{ColumnProfile, ColumnProfiles, NumericColumnProfile}
 
@@ -28,18 +28,12 @@ import com.amazon.deequ.profiles.{ColumnProfile, ColumnProfiles, NumericColumnPr
   *
   * @param profilingResult Results of column profiling
   * @param verificationResult Results of constraints applied
-  * @param label Column which was marked as label for the report
-  * @param exactDistinctCountForColumns Columns for which the exact value count was determined
-  * @param columnWhitelists Columns for which the value range was checked against a whitelist
-  * @param columnBlacklists Columns for which the value range was checked against a blacklist
+  * @param sanityCheckerOptions Options specified for the sanity checker run
   */
 case class SanityReport(
                          profilingResult: ColumnProfiles,
                          verificationResult: VerificationResult,
-                         label: Option[String],
-                         exactDistinctCountForColumns: Option[Seq[String]],
-                         columnWhitelists: Option[Map[String, Seq[String]]],
-                         columnBlacklists: Option[Map[String, Seq[String]]]
+                         sanityCheckerOptions: SanityCheckerOptions
                        )
 
 object SanityReport {
@@ -67,10 +61,10 @@ object SanityReport {
       val resultsForAllConstraints = report.verificationResult.checkResults
         .flatMap { case (_, checkResult) => checkResult.constraintResults }
 
-      if(report.label.isDefined) {
-        reportLabelResult(report.label, resultsForAllConstraints)
+      if(report.sanityCheckerOptions.label.isDefined) {
+        reportLabelResult(report.sanityCheckerOptions.label, resultsForAllConstraints)
       }
-      reportFeatureResults(report.label, resultsForAllConstraints)
+      reportFeatureResults(report.sanityCheckerOptions.label, resultsForAllConstraints)
       reportValueAllowanceResults(resultsForAllConstraints)
     }
   }

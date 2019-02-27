@@ -37,20 +37,25 @@ import org.apache.spark.sql.types.StructType
   * result is returned.
   *
   */
+
+private[deequ] case class SanityCheckerOptions(
+                                 label: Option[String] = None,
+                                 featureCompleteness: Double =
+                                  SanityChecker.DEFAULT_FEATURE_COMPLETENESS,
+                                 exactDistinctCountForColumns: Option[Seq[String]] = None,
+                                 columnWhitelists: Option[Map[String, Seq[String]]] = None,
+                                 columnBlacklists: Option[Map[String, Seq[String]]] = None
+                               )
+
 object SanityChecker {
 
   val DEFAULT_FEATURE_COMPLETENESS = 1.0
 
   private[deequ] def check(
       data: DataFrame,
-      label: Option[String],
-      featureCompleteness: Double =
-        SanityChecker.DEFAULT_FEATURE_COMPLETENESS,
+      options: SanityCheckerOptions = SanityCheckerOptions(),
       restrictToColumns: Option[Seq[String]] = None,
-      printStatusUpdates: Boolean = false,
-      exactDistinctCountForColumns: Option[Seq[String]],
-      columnWhitelists: Option[Map[String, Seq[String]]],
-      columnBlacklists: Option[Map[String, Seq[String]]])
+      printStatusUpdates: Boolean = false)
     : SanityReport = {
 
     // step 1: profile columns
@@ -64,29 +69,28 @@ object SanityChecker {
       .onData(data)
       .addCheck(
         getFeatureCompletenessCheck(
-          label,
-          getRelevantColumns(data.schema, label, restrictToColumns),
-          featureCompleteness))
-    if(exactDistinctCountForColumns.isDefined) {
-      verification = exactDistinctCountForColumns
+          options.label,
+          getRelevantColumns(data.schema, options.label, restrictToColumns),
+          options.featureCompleteness))
+    if(options.exactDistinctCountForColumns.isDefined) {
+      verification = options.exactDistinctCountForColumns
         .foldLeft(verification) { (suite, column) =>
           suite.addRequiredAnalyzer(CountDistinct(column))
         }
     }
-    if(columnWhitelists.isDefined) {
+    if(options.columnWhitelists.isDefined) {
       verification = verification.addCheck(
-        getValueAllowanceCheck(allowed = true, columnWhitelists.get)
+        getValueAllowanceCheck(allowed = true, options.columnWhitelists.get)
       )
     }
-    if(columnBlacklists.isDefined) {
+    if(options.columnBlacklists.isDefined) {
       verification = verification.addCheck(
-        getValueAllowanceCheck(allowed = false, columnBlacklists.get)
+        getValueAllowanceCheck(allowed = false, options.columnBlacklists.get)
       )
     }
     val verificationResult = verification.run()
 
-    SanityReport(profilingResult, verificationResult, label, exactDistinctCountForColumns,
-      columnWhitelists, columnBlacklists)
+    SanityReport(profilingResult, verificationResult, options)
   }
 
   private[this] def getFeatureCompletenessCheck(
