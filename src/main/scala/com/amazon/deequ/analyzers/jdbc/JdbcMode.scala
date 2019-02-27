@@ -17,52 +17,32 @@
 package com.amazon.deequ.analyzers.jdbc
 
 import com.amazon.deequ.analyzers.Analyzers
-import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
-import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
+import com.amazon.deequ.analyzers.jdbc.Preconditions._
+import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 
-import scala.util.{Failure, Success, Try}
-
-case class ModeMetric(columns: Seq[String], value: Try[Tuple3[String, Double, Double]])
-  extends Metric[Tuple3[String, Double, Double]] {
-  val entity: Entity.Value = entityFrom(columns)
-  val instance: String = columns.mkString(",")
-  val name = "Mode"
-
-  def flatten(): Seq[DoubleMetric] = {
-    value
-      .map { tuple =>
-        val frequency = DoubleMetric(entity, s"$name.frequency_for: ${tuple._1}", instance,
-          Success(tuple._2))
-
-        val ratio = DoubleMetric(entity, s"$name.ratio", instance, Success(tuple._3))
-        Seq(frequency, ratio)
-      }
-      .recover {
-        case e: Exception => Seq(metricFromFailure(e, name, instance, entity))
-      }
-      .get
-  }
-}
+import scala.util.Success
 
 /**
-  * Mode is the most frequent combination of values occurring in the specified columns. If it is
-  * not unique, an arbitrary candidate is selected.
+  * Mode is the most frequent value occurring in the specified column. If it is not unique, an
+  * arbitrary candidate is selected. The mode analyzer only works for numeric columns.
   */
-case class JdbcMode(columns: Seq[String])
-  extends JdbcScanShareableFrequencyBasedAnalyzer("Mode", columns) {
+case class JdbcMode(column: String)
+  extends JdbcScanShareableFrequencyBasedAnalyzer("Mode", Seq(column)) {
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
-    val noNullColumns = columns.map(column => s"$column IS NOT NULL").mkString(" AND ")
-    val mode = columns.map(column => s"$column::text").mkString(" || ', ' || ")
-    val paddedFrequency = s"LPAD(${Analyzers.COUNT_COL}::text, char_length($numRows::text), '0')"
-    s"MAX(CASE WHEN $noNullColumns THEN $paddedFrequency || '|' || $mode ELSE NULL END)" ::
-      s"$numRows" :: Nil
+    val mode = s"$column::text"
+    val paddedFrequency = s"LPAD(${Analyzers.COUNT_COL}::text, char_length('$numRows'), '0')"
+    s"MAX(CASE WHEN $column IS NOT NULL THEN $paddedFrequency || '|' || $mode ELSE NULL END)" :: Nil
   }
 
-  override def fromAggregationResult(result: JdbcRow, offset: Int): ModeMetric = {
+  override def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
     result.getMode(offset) match {
-      case Some(mode) => ModeMetric(columns, Success(mode))
-      case _ => ModeMetric(columns, Failure(emptyStateException(this)))
+      case Some(mode) => DoubleMetric(Entity.Column, s"Mode", column, Success(mode))
+      case _ => emptyFailureMetric()
     }
+  }
+
+  override def preconditions: Seq[Table => Unit] = {
+    super.preconditions ++ Seq(isNumeric(column))
   }
 }
