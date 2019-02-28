@@ -26,6 +26,36 @@ import scala.util.{Failure, Success}
 class JdbcAnalyzerTests
   extends WordSpec with Matchers with JdbcContextSpec with JdbcFixtureSupport {
 
+  "MutualInformation analyzer" should {
+    "compute correct metrics" in {
+      withJdbc { connection =>
+        val table = getTableFull(connection)
+        assert(JdbcMutualInformation("att1", "att2").calculate(table) ==
+          DoubleMetric(Entity.Mutlicolumn, "MutualInformation", "att1,att2",
+            Success(-(0.75 * math.log(0.75) + 0.25 * math.log(0.25)))))
+      }
+    }
+    "yields 0 for conditionally uninformative columns" in {
+      withJdbc { connection =>
+        val table = getTableWithConditionallyUninformativeColumns(connection)
+        assert(JdbcMutualInformation("att1", "att2").calculate(table).value == Success(0.0))
+      }
+    }
+    "compute entropy for same column" in {
+      withJdbc { connection =>
+        val table = getTableFull(connection)
+
+        val entropyViaMI = JdbcMutualInformation("att1", "att1").calculate(table)
+        val entropy = JdbcEntropy("att1").calculate(table)
+
+        assert(entropyViaMI.value.isSuccess)
+        assert(entropy.value.isSuccess)
+
+        assert(entropyViaMI.value.get == entropy.value.get)
+      }
+    }
+  }
+
   "DataType analyzer" should {
     "compute correct metrics" in withJdbc { connection =>
 
