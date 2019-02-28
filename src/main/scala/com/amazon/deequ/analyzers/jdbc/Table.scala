@@ -187,17 +187,6 @@ case class JdbcRow(row: Seq[Any]) {
   }
 
   def getAs[T](col: Int): T = row(col).asInstanceOf[T]
-
-  // Converts the result of the Mode analyzer into a tuple that can be accessed more conveniently
-  def getMode(col: Int): Option[Double] = {
-    row(col) match {
-      case result: String =>
-        val components = result.split('|')
-        val mode = components(1).toDouble
-        Some(mode)
-      case _ => None
-    }
-  }
 }
 
 object JdbcRow {
