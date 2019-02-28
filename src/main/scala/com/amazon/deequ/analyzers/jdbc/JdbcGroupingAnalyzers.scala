@@ -24,7 +24,7 @@ import com.amazon.deequ.analyzers.jdbc.Preconditions._
 import com.amazon.deequ.metrics.DoubleMetric
 
 /** Base class for all analyzers that operate the frequencies of groups in the data */
-abstract class JdbcFrequencyBasedAnalyzer(columnsToGroupOn: Seq[String])
+abstract class JdbcFrequencyBasedAnalyzer(name: String, columnsToGroupOn: Seq[String])
   extends JdbcGroupingAnalyzer[JdbcFrequenciesAndNumRows, DoubleMetric] {
 
   def toDouble(input: String): String = {
@@ -35,6 +35,18 @@ abstract class JdbcFrequencyBasedAnalyzer(columnsToGroupOn: Seq[String])
 
   override def computeStateFrom(table: Table): Option[JdbcFrequenciesAndNumRows] = {
     Some(JdbcFrequencyBasedAnalyzer.computeFrequencies(table, groupingColumns()))
+  }
+
+  override private[deequ] def toFailureMetric(exception: Exception): DoubleMetric = {
+    metricFromFailure(exception, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
+  }
+
+  protected def toSuccessMetric(value: Double): DoubleMetric = {
+    metricFromValue(value, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
+  }
+
+  protected def emptyFailureMetric(): DoubleMetric = {
+    metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
   }
 
   /** We need at least one grouping column, and all specified columns must exist */
@@ -89,7 +101,7 @@ object JdbcFrequencyBasedAnalyzer {
 
 /** Base class for all analyzers that compute a (shareable) aggregation over the grouped data */
 abstract class JdbcScanShareableFrequencyBasedAnalyzer(name: String, columnsToGroupOn: Seq[String])
-  extends JdbcFrequencyBasedAnalyzer(columnsToGroupOn) {
+  extends JdbcFrequencyBasedAnalyzer(name, columnsToGroupOn) {
 
   def aggregationFunctions(numRows: Long): Seq[String]
 
@@ -106,18 +118,6 @@ abstract class JdbcScanShareableFrequencyBasedAnalyzer(name: String, columnsToGr
       case None =>
         metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
     }
-  }
-
-  override private[deequ] def toFailureMetric(exception: Exception): DoubleMetric = {
-    metricFromFailure(exception, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
-  }
-
-  protected def toSuccessMetric(value: Double): DoubleMetric = {
-    metricFromValue(value, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
-  }
-
-  protected def emptyFailureMetric(): DoubleMetric = {
-    metricFromEmpty(this, name, columnsToGroupOn.mkString(","), entityFrom(columnsToGroupOn))
   }
 
   def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
