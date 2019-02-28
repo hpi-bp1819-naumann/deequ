@@ -23,23 +23,22 @@ import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import scala.util.Success
 
 /**
-  * Mode is the most frequent value occurring in the specified column. If it is not unique, an
-  * arbitrary candidate is selected. The mode analyzer only works for numeric columns.
+  * Mode is the most frequent value of the specified column. If it is not unique, the maximum of
+  * all possible candidates is chosen. The mode analyzer only works on numeric columns.
   */
 case class JdbcMode(column: String)
   extends JdbcScanShareableFrequencyBasedAnalyzer("Mode", Seq(column)) {
 
   override def aggregationFunctions(numRows: Long): Seq[String] = {
-    val mode = s"CAST($column AS TEXT)"
-    val frequency = s"CAST(${Analyzers.COUNT_COL} AS TEXT)"
-    val paddedFrequency = s"LPAD($frequency, char_length('$numRows'), '0')"
-    s"MAX(CASE WHEN $column IS NOT NULL THEN $paddedFrequency || '|' || $mode ELSE NULL END)" :: Nil
+    val array = s"ARRAY[${Analyzers.COUNT_COL}, $column]"
+    s"(MAX(CASE WHEN $column IS NOT NULL THEN $array ELSE NULL END))[2]" :: Nil
   }
 
   override def fromAggregationResult(result: JdbcRow, offset: Int): DoubleMetric = {
-    result.getMode(offset) match {
-      case Some(mode) => DoubleMetric(Entity.Column, s"Mode", column, Success(mode))
-      case _ => emptyFailureMetric()
+    if (result.isNullAt(offset)) {
+      emptyFailureMetric()
+    } else {
+      DoubleMetric(Entity.Column, s"Mode", column, Success(result.getDouble(offset)))
     }
   }
 
