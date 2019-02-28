@@ -22,8 +22,8 @@ import com.amazon.deequ.analyzers.jdbc.{JdbcMode, Table}
 object ModeWithJdbc extends App {
   withJdbc { connection =>
     val table = Table("food_des", connection)
-    val modeOfFatFactor = JdbcMode("fat_factor").calculate(table)
+    val mode = JdbcMode("fat_factor").calculate(table)
 
-    println(modeOfFatFactor)
+    println(mode)
   }
 }

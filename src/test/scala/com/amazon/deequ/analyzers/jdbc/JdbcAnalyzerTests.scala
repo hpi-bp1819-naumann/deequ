@@ -26,20 +26,6 @@ import scala.util.{Failure, Success}
 class JdbcAnalyzerTests
   extends WordSpec with Matchers with JdbcContextSpec with JdbcFixtureSupport {
 
-  "Mode analyzer" should {
-    "compute correct metrics" in withJdbc { connection =>
-      val uniqueMode = getTableWithUniqueMode(connection)
-      val notUniqueMode = getTableWithNotUniqueMode(connection)
-
-      assert(JdbcMode("i").calculate(uniqueMode) == DoubleMetric(Entity.Column,"Mode","i",
-        Success(3.0)))
-
-      assert(JdbcMode("i").calculate(notUniqueMode) == DoubleMetric(Entity.Column, "Mode", "i",
-        Success(1.0)) || JdbcMode("i").calculate(notUniqueMode) == DoubleMetric(Entity.Column,
-        "Mode", "i", Success(3.0)))
-      }
-  }
-
   "DataType analyzer" should {
     "compute correct metrics" in withJdbc { connection =>
 
