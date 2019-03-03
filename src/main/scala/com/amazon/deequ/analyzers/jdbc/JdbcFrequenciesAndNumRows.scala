@@ -59,7 +59,11 @@ case class JdbcFrequenciesAndNumRows(table: Table,
     _numRows.get
   }
 
-  def frequencies(): (mutable.LinkedHashMap[String, String], Map[Seq[String], Long]) = {
+  def columns(): mutable.LinkedHashMap[String, String] = {
+    table.columns()
+  }
+
+  def frequencies(): Map[Seq[String], Long] = {
 
     var frequencies = Map[Seq[String], Long]()
 
@@ -82,7 +86,11 @@ case class JdbcFrequenciesAndNumRows(table: Table,
       frequencies += (columns -> result.getLong(numGroupingColumns + 1))
     }
 
-    (table.columns(), frequencies)
+    frequencies
+  }
+
+  def columnsAndFrequencies(): (mutable.LinkedHashMap[String, String], Map[Seq[String], Long]) = {
+    (columns(), frequencies())
   }
 
   override def sum(other: JdbcFrequenciesAndNumRows): JdbcFrequenciesAndNumRows = {

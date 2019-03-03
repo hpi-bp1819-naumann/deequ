@@ -30,7 +30,7 @@ object IncrementalMaximumWithJdbc extends App {
 
     val maxState = analyzer.computeStateFrom(table).getOrElse(MaxState(0))
 
-    val stateProvider = JdbcFileSystemStateProvider("") // file system path to store at
+    val stateProvider = JdbcFileSystemStateProvider("", connection=connection) // file system path to store at
     stateProvider.persist[MaxState](analyzer, maxState)
 
     val maximum2 = analyzer.computeMetricFrom(stateProvider.load[MaxState](analyzer))

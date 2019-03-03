@@ -17,7 +17,7 @@
 package com.amazon.deequ.analyzers.jdbc
 
 import java.sql.Types._
-import java.sql.{JDBCType, ResultSet}
+import java.sql.{Connection, JDBCType, ResultSet}
 
 import com.amazon.deequ.analyzers.runners._
 import com.amazon.deequ.analyzers.{DoubleValuedState, State}
@@ -109,7 +109,8 @@ trait JdbcAnalyzer[S <: State[_], +M <: Metric[_]] {
   private[deequ] def aggregateStateTo(
       sourceA: JdbcStateLoader,
       sourceB: JdbcStateLoader,
-      target: JdbcStatePersister)
+      target: JdbcStatePersister,
+      connection: Connection)
   : Unit = {
 
     val maybeStateA = sourceA.load[S](this)

@@ -104,12 +104,12 @@ case class JdbcHistogram(column: String,
       case Some(theState) =>
         val value: Try[Distribution] = Try {
 
-          val topNFreq = topNFrequencies(theState.frequencies()._2, maxDetailBins)
-          val binCount = theState.frequencies()._2.size
+          val topNFreq = topNFrequencies(theState.frequencies(), maxDetailBins)
+          val binCount = theState.frequencies().size
 
           val histogramDetails = topNFreq.keys
             .map { discreteValue: Seq[String] =>
-              val absolute = theState.frequencies()._2(discreteValue)
+              val absolute = theState.frequencies()(discreteValue)
               val ratio = absolute.toDouble / theState.numRows
               discreteValue.head -> DistributionValue(absolute, ratio)
             }

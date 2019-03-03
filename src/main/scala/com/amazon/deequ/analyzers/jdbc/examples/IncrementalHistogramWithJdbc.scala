@@ -27,7 +27,7 @@ object IncrementalHistogramWithJdbc extends App {
 
     println(analyzer.calculate(table))
 
-    val stateProvider = JdbcFileSystemStateProvider("") // file system path to store at
+    val stateProvider = JdbcFileSystemStateProvider("", connection=connection) // file system path to store at
 
     stateProvider.persist[JdbcFrequenciesAndNumRows](analyzer, analyzer.computeStateFrom(table).get)
     val histogramOfComName =

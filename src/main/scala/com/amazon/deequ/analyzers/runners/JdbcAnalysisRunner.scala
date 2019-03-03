@@ -425,12 +425,12 @@ object JdbcAnalysisRunner {
     /* Create the failure metrics from the precondition violations */
     val preconditionFailures = computePreconditionFailureMetrics(failedAnalyzers, table)
 
-    val aggregatedStates = JdbcInMemoryStateProvider()
+    val aggregatedStates = JdbcInMemoryStateProvider(table.jdbcConnection)
 
     /* Aggregate all initial states */
     passedAnalyzers.foreach { analyzer =>
       stateLoaders.foreach { stateLoader =>
-        analyzer.aggregateStateTo(aggregatedStates, stateLoader, aggregatedStates)
+        analyzer.aggregateStateTo(aggregatedStates, stateLoader, aggregatedStates, table.jdbcConnection)
       }
     }
 
