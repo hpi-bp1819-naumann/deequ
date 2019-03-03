@@ -29,73 +29,67 @@ class JdbcAnalyzerTests
   "DataType analyzer" should {
     "compute correct metrics" in withJdbc { connection =>
 
-      withJdbc { connection =>
-        val table = getTableWithImproperDataTypes(connection)
+      val table = getTableWithImproperDataTypes(connection)
 
-        assert(JdbcDataType("mixed",
-          Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("mixed",
-          Success(Distribution(Map(
-            "Boolean" -> DistributionValue(1, 0.2),
-            "Fractional" -> DistributionValue(1, 0.2),
-            "Integral" -> DistributionValue(1, 0.2),
-            "Unknown" -> DistributionValue(1, 0.2),
-            "String" -> DistributionValue(1, 0.2)), 5)))
-        )
-        assert(JdbcDataType("type_integer",
-          Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_integer",
-          Success(Distribution(Map(
-            "Boolean" -> DistributionValue(0, 0.0),
-            "Fractional" -> DistributionValue(0, 0.0),
-            "Integral" -> DistributionValue(5, 1.0),
-            "Unknown" -> DistributionValue(0, 0.0),
-            "String" -> DistributionValue(0, 0.0)), 5)))
-        )
-        assert(JdbcDataType("type_fractional",
-          Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_fractional",
-          Success(Distribution(Map(
-            "Boolean" -> DistributionValue(0, 0.0),
-            "Fractional" -> DistributionValue(4, 0.8),
-            "Integral" -> DistributionValue(0, 0.0),
-            "Unknown" -> DistributionValue(1, 0.2),
-            "String" -> DistributionValue(0, 0.0)), 5)))
-        )
-      }
+      assert(JdbcDataType("mixed",
+        Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("mixed",
+        Success(Distribution(Map(
+          "Boolean" -> DistributionValue(1, 0.2),
+          "Fractional" -> DistributionValue(1, 0.2),
+          "Integral" -> DistributionValue(1, 0.2),
+          "Unknown" -> DistributionValue(1, 0.2),
+          "String" -> DistributionValue(1, 0.2)), 5)))
+      )
+      assert(JdbcDataType("type_integer",
+        Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_integer",
+        Success(Distribution(Map(
+          "Boolean" -> DistributionValue(0, 0.0),
+          "Fractional" -> DistributionValue(0, 0.0),
+          "Integral" -> DistributionValue(5, 1.0),
+          "Unknown" -> DistributionValue(0, 0.0),
+          "String" -> DistributionValue(0, 0.0)), 5)))
+      )
+      assert(JdbcDataType("type_fractional",
+        Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_fractional",
+        Success(Distribution(Map(
+          "Boolean" -> DistributionValue(0, 0.0),
+          "Fractional" -> DistributionValue(4, 0.8),
+          "Integral" -> DistributionValue(0, 0.0),
+          "Unknown" -> DistributionValue(1, 0.2),
+          "String" -> DistributionValue(0, 0.0)), 5)))
+      )
     }
   }
 
   "PatternMatch analyzer" should {
     "compute correct metrics" in withJdbc { connection =>
 
-      withJdbc { connection =>
-        val table = getTableWithImproperDataTypes(connection)
+      val table = getTableWithImproperDataTypes(connection)
 
-        assert(JdbcPatternMatch("mixed",
-          """^\s*(?:-|\+)?\d+\.\d+\s*$""".r,
-          Some("type_integer IS NOT NULL")).calculate(table) == DoubleMetric(
-          Entity.Column, "PatternMatch", "mixed", Success(0.2))
-        )
-      }
+      assert(JdbcPatternMatch("mixed",
+        """^\s*(?:-|\+)?\d+\.\d+\s*$""".r,
+        Some("type_integer IS NOT NULL")).calculate(table) == DoubleMetric(
+        Entity.Column, "PatternMatch", "mixed", Success(0.2))
+      )
     }
   }
 
   "Size analyzer" should {
     "compute correct metrics" in withJdbc { connection =>
 
-      withJdbc { connection =>
-        val tableMissing = getTableMissingWithSize(connection)
-        val tableFull = getTableFullWithSize(connection)
-        val tableFiltered = getTableFullWithSize(connection)
-        val tableEmpty = getTableEmptyWithSize(connection)
+      val tableMissing = getTableMissingWithSize(connection)
+      val tableFull = getTableFullWithSize(connection)
+      val tableFiltered = getTableFullWithSize(connection)
+      val tableEmpty = getTableEmptyWithSize(connection)
 
-        assert(JdbcSize().calculate(tableMissing._1) == DoubleMetric(Entity.Dataset, "Size", "*",
-          Success(tableMissing._2)))
-        assert(JdbcSize().calculate(tableFull._1) == DoubleMetric(Entity.Dataset, "Size", "*",
-          Success(tableFull._2)))
-        assert(JdbcSize(where = Some("item != 3")).calculate(tableFiltered._1) ==
-          DoubleMetric(Entity.Dataset, "Size", "*", Success(3.0)))
-        assert(JdbcSize().calculate(tableEmpty._1) == DoubleMetric(Entity.Dataset, "Size", "*",
-          Success(tableEmpty._2)))
-      }
+      assert(JdbcSize().calculate(tableMissing._1) == DoubleMetric(Entity.Dataset, "Size", "*",
+        Success(tableMissing._2)))
+      assert(JdbcSize().calculate(tableFull._1) == DoubleMetric(Entity.Dataset, "Size", "*",
+        Success(tableFull._2)))
+      assert(JdbcSize(where = Some("item != 3")).calculate(tableFiltered._1) ==
+        DoubleMetric(Entity.Dataset, "Size", "*", Success(3.0)))
+      assert(JdbcSize().calculate(tableEmpty._1) == DoubleMetric(Entity.Dataset, "Size", "*",
+        Success(tableEmpty._2)))
     }
   }
 
@@ -103,39 +97,35 @@ class JdbcAnalyzerTests
 
     "compute correct metrics" in withJdbc { connection =>
 
-      withJdbc { connection =>
-        val tableMissing = getTableMissing(connection)
-        val tableMissingColumn = getTableMissingColumn(connection)
+      val tableMissing = getTableMissing(connection)
+      val tableMissingColumn = getTableMissingColumn(connection)
 
-        assert(JdbcCompleteness("att1").calculate(tableMissing) == DoubleMetric(Entity.Column,
-          "Completeness", "att1", Success(0.5)))
-        assert(JdbcCompleteness("att2").calculate(tableMissing) == DoubleMetric(Entity.Column,
-          "Completeness", "att2", Success(0.75)))
-        assert(JdbcCompleteness("att1").calculate(tableMissingColumn) == DoubleMetric(Entity.Column,
-          "Completeness", "att1", Success(0.0)))
-      }
+      assert(JdbcCompleteness("att1").calculate(tableMissing) == DoubleMetric(Entity.Column,
+        "Completeness", "att1", Success(0.5)))
+      assert(JdbcCompleteness("att2").calculate(tableMissing) == DoubleMetric(Entity.Column,
+        "Completeness", "att2", Success(0.75)))
+      assert(JdbcCompleteness("att1").calculate(tableMissingColumn) == DoubleMetric(Entity.Column,
+        "Completeness", "att1", Success(0.0)))
     }
 
     "error handling" should {
 
       "fail on empty table" in withJdbc { connection =>
-        withJdbc { connection =>
-          val tableEmpty = getTableEmpty(connection)
-          assert(JdbcCompleteness("att1").calculate(tableEmpty).value.isFailure)
-        }
+
+        val tableEmpty = getTableEmpty(connection)
+        assert(JdbcCompleteness("att1").calculate(tableEmpty).value.isFailure)
       }
 
       "fail on wrong column input" in withJdbc { connection =>
-        withJdbc { connection =>
-          val tableMissing = getTableMissing(connection)
 
-          JdbcCompleteness("someMissingColumn").calculate(tableMissing) match {
-            case metric =>
-              assert(metric.entity == Entity.Column)
-              assert(metric.name == "Completeness")
-              assert(metric.instance == "someMissingColumn")
-              assert(metric.value.isFailure)
-          }
+        val tableMissing = getTableMissing(connection)
+
+        JdbcCompleteness("someMissingColumn").calculate(tableMissing) match {
+          case metric =>
+            assert(metric.entity == Entity.Column)
+            assert(metric.name == "Completeness")
+            assert(metric.instance == "someMissingColumn")
+            assert(metric.value.isFailure)
         }
       }
     }
