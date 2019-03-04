@@ -70,7 +70,10 @@ case class Table (name: String,
 
     var cols = mutable.LinkedHashMap[String, String]()
     for (col <- 1 to colCount) {
-      cols(metaData.getColumnLabel(col)) = metaData.getColumnTypeName(col)
+      cols(metaData.getColumnLabel(col)) = metaData.getColumnType(col) match {
+        case 0 => "TEXT" // TODO: temporary fix for issues regarding SQLite meta data queries
+        case _ => metaData.getColumnTypeName(col)
+      }
     }
 
     cols

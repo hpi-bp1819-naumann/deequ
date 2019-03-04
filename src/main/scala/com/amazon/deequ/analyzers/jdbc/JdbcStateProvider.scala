@@ -515,7 +515,6 @@ case class JdbcHdfsStateProvider(
   : Unit = {
 
     def toSparkType(sqlType: String): org.apache.spark.sql.types.DataType = {
-      println(sqlType)
 
       sqlType.toUpperCase() match {
         case "BOOLEAN" => BooleanType
@@ -538,7 +537,6 @@ case class JdbcHdfsStateProvider(
     val rowsRdd: RDD[Row] = session.sparkContext.parallelize(frequencies)
 
     val schema = columnNames.foldLeft(new StructType()) { (schema, col) =>
-      println(col)
       schema.add(StructField(col._1, toSparkType(col._2)))
     }.add(StructField(Analyzers.COUNT_COL, LongType))
 
