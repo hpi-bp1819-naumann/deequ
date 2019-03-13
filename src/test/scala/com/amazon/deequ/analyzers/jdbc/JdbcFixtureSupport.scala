@@ -443,4 +443,31 @@ trait JdbcFixtureSupport {
       )
     fillTableWithData("PricedItems", columns, data, connection)
   }
+
+  def getTableOdd(connection: Connection): Table = {
+    val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER")
+    val data =
+      Seq(
+        Seq(1),
+        Seq(2),
+        Seq(3),
+        Seq(4),
+        Seq(5)
+      )
+    fillTableWithData("Odd", columns, data, connection)
+  }
+
+  def getTableEven(connection: Connection): Table = {
+    val columns = mutable.LinkedHashMap[String, String]("att1" -> "INTEGER")
+    val data =
+      Seq(
+        Seq(1),
+        Seq(2),
+        Seq(3),
+        Seq(4),
+        Seq(5),
+        Seq(6)
+      )
+    fillTableWithData("Even", columns, data, connection)
+  }
 }
