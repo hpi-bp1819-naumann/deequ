@@ -26,6 +26,19 @@ import scala.util.{Failure, Success}
 class JdbcAnalyzerTests
   extends WordSpec with Matchers with JdbcContextSpec with JdbcFixtureSupport {
 
+  "Median analyzer" should {
+    "compute correct metrics" in {
+      withJdbc { connection =>
+        val tableOdd = getTableOdd(connection)
+        val tableEven = getTableEven(connection)
+        assert(JdbcMedian("att1").calculate(tableOdd) ==
+          DoubleMetric(Entity.Column, "Median", "att1", Success(3.0)))
+        assert(JdbcMedian("att1").calculate(tableEven) ==
+          DoubleMetric(Entity.Column, "Median", "att1", Success(3.5)))
+      }
+    }
+  }
+
   "MutualInformation analyzer" should {
     "compute correct metrics" in {
       withJdbc { connection =>
