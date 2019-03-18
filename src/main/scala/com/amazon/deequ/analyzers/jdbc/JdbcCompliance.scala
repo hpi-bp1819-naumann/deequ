@@ -18,6 +18,7 @@ package com.amazon.deequ.analyzers.jdbc
 
 import com.amazon.deequ.analyzers.NumMatchesAndCount
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection}
 
 /**
   * Compliance is a measure of the fraction of rows that complies with the given column constraint.
@@ -52,5 +53,9 @@ case class JdbcCompliance(instance: String, predicate: String, where: Option[Str
     val summation = s"COUNT(${conditionalSelection("1", Some(predicate) :: where :: Nil)})"
 
     summation :: conditionalCount(where) :: Nil
+  }
+
+  override protected def additionalPreconditions(): Seq[Table => Unit] = {
+    hasNoInjection(where) :: hasNoInjection(Some(predicate)) :: Nil
   }
 }

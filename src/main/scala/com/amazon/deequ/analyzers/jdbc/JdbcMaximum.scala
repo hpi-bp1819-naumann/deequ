@@ -18,7 +18,7 @@ package com.amazon.deequ.analyzers.jdbc
 
 import com.amazon.deequ.analyzers.MaxState
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
-import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, isNumeric}
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection, isNumeric}
 
 
 case class JdbcMaximum(column: String, where: Option[String] = None)
@@ -36,6 +36,6 @@ case class JdbcMaximum(column: String, where: Option[String] = None)
   }
 
   override protected def additionalPreconditions(): Seq[Table => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+    hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 }

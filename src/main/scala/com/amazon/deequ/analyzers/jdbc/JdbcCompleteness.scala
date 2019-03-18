@@ -18,7 +18,7 @@ package com.amazon.deequ.analyzers.jdbc
 
 import com.amazon.deequ.analyzers.NumMatchesAndCount
 import com.amazon.deequ.analyzers.jdbc.JdbcAnalyzers._
-import com.amazon.deequ.analyzers.jdbc.Preconditions.hasColumn
+import com.amazon.deequ.analyzers.jdbc.Preconditions.{hasColumn, hasNoInjection}
 
 case class JdbcCompleteness(column: String, where: Option[String] = None) extends
   JdbcStandardScanShareableAnalyzer[NumMatchesAndCount]("Completeness", column) {
@@ -43,6 +43,6 @@ case class JdbcCompleteness(column: String, where: Option[String] = None) extend
   }
 
   override protected def additionalPreconditions(): Seq[Table => Unit] = {
-    hasColumn(column) :: Nil
+    hasColumn(column) :: hasNoInjection(where) :: Nil
   }
 }
