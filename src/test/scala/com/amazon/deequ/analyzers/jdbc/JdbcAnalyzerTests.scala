@@ -38,26 +38,8 @@ class JdbcAnalyzerTests
             "Boolean" -> DistributionValue(1, 0.2),
             "Fractional" -> DistributionValue(1, 0.2),
             "Integral" -> DistributionValue(1, 0.2),
-            "Unknown" -> DistributionValue(1, 0.2),
-            "String" -> DistributionValue(1, 0.2)), 5)))
-        )
-        assert(JdbcDataType("type_integer",
-          Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_integer",
-          Success(Distribution(Map(
-            "Boolean" -> DistributionValue(0, 0.0),
-            "Fractional" -> DistributionValue(0, 0.0),
-            "Integral" -> DistributionValue(5, 1.0),
-            "Unknown" -> DistributionValue(0, 0.0),
-            "String" -> DistributionValue(0, 0.0)), 5)))
-        )
-        assert(JdbcDataType("type_fractional",
-          Some("type_integer IS NOT NULL")).calculate(table) == HistogramMetric("type_fractional",
-          Success(Distribution(Map(
-            "Boolean" -> DistributionValue(0, 0.0),
-            "Fractional" -> DistributionValue(4, 0.8),
-            "Integral" -> DistributionValue(0, 0.0),
-            "Unknown" -> DistributionValue(1, 0.2),
-            "String" -> DistributionValue(0, 0.0)), 5)))
+            "Unknown" -> DistributionValue(0, 0),
+            "String" -> DistributionValue(2, 0.4)), 5)))
         )
       }
     }

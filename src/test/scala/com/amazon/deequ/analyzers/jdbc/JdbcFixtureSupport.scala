@@ -393,8 +393,8 @@ trait JdbcFixtureSupport {
 
     val data =
       Seq(
-        Seq("\n\n-1  ", 1, 2.3),
-        Seq("\n+2.376  \n", 2, 5.6),
+        Seq("-1", 1, 2.3),
+        Seq("+2.376", 2, 5.6),
         Seq("true", 3, null),
         Seq("null", null, null),
         Seq("string", 6, 3.3),
