@@ -35,8 +35,8 @@ case class JdbcMedian(column: String)
           s"""
              |SELECT
              |  CASE WHEN (num_rows % 2 = 0 AND next IS NOT NULL)
-             |  THEN 0.5 * ($column + next)
-             |  ELSE $column END
+             |  THEN 0.5 * ($column + (CASE WHEN (running_sum = num_rows / 2)
+             |                         THEN next ELSE $column END)) ELSE $column END
              |FROM (
              |  SELECT
              |    $column,
