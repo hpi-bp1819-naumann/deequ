@@ -53,7 +53,7 @@ case class JdbcDataType(
 
     def countOccurrencesOf(pattern: String): String = {
       val castColumnToString =
-        s"CAST(CASE WHEN $column IS NULL THEN 'null' ELSE $column END AS TEXT)"
+        s"(CASE WHEN $column IS NULL THEN 'null' ELSE CAST($column AS TEXT) END)"
 
       s"COUNT(${conditionalSelection(column,
         Some(s"(SELECT regexp_matches($castColumnToString, '$pattern', '')) IS NOT NULL") ::
