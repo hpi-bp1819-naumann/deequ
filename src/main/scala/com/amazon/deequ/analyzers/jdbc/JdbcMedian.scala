@@ -46,7 +46,8 @@ case class JdbcMedian(column: String)
              |  FROM
              |    $table
              |  WHERE
-             |    $column IS NOT NULL) intermediate
+             |    $column IS NOT NULL
+             |  ORDER BY $column ASC) intermediate
              |WHERE
              |  intermediate.running_sum >= (num_rows + 1) / 2
              |LIMIT 1;
