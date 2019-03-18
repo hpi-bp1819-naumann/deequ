@@ -25,8 +25,8 @@ import com.amazon.deequ.metrics.HistogramMetric
 import scala.util.{Failure, Success}
 
 case class JdbcDataType(
-       column: String,
-       where: Option[String] = None)
+                         column: String,
+                         where: Option[String] = None)
   extends JdbcScanShareableAnalyzer[DataTypeHistogram, HistogramMetric] {
 
   override def aggregationFunctions(): Seq[String] = {
@@ -35,43 +35,39 @@ case class JdbcDataType(
      * boolean, string), aggregate the number of values that could be instances of the
      * respective data type. Each value is assigned to exactly one data type (i.e., data
      * types are mutually exclusive).
-     * A value's data type is assumed to be unknown, if it is a NULL-value or one of the
-     * following strings: n.a. | null | n/a.
-     * A value is integral if it contains only digits without any fractional part. If the
-     * value contains only a single digit, it must not be 0 or 1, because those two values
-     * are assigned to boolean.
+     * A value's data type is assumed to be unknown, if it is a NULL-value.
+     * A value is integral if it contains only digits without any fractional part.
      * A value is fractional if it contains only digits and a fractional part separated by
      * a decimal separator.
-     * A value is boolean if it is equal to one of the following constants: 1 | 0 | true |
-     * false | t | f | y | n | yes | no | on | off.
+     * A value is boolean if it is either true or false.
     */
     // use triple quotes to avoid special escaping
-    val integerPattern = """^\s*(?:-|\+)?(?:-1|[2-9]|\d{2,})\s*$"""
-    val fractionPattern = """^\s*(?:-|\+)?\d+\.\d+\s*$"""
-    val booleanPattern = """(?i)^\s*(?:1|0|true|false|t|f|y|n|yes|no|on|off)\s*$"""
-    val nullPattern = """(?i)^\s*(?:null|N\/A|N\.?A\.?)\s*$"""
+    val integerPattern = """^(-|\+)? ?\d*$"""
+    val fractionPattern = """^(-|\+)? ?\d*\.\d*$"""
+    val booleanPattern = """^(true|false)$"""
 
     def countOccurrencesOf(pattern: String): String = {
-      val castColumnToString =
-        s"(CASE WHEN $column IS NULL THEN 'null' ELSE CAST($column AS TEXT) END)"
+      def toString(col: String) = s"CAST($col AS TEXT)"
 
-      s"COUNT(${conditionalSelection(column,
-        Some(s"(SELECT regexp_matches($castColumnToString, '$pattern', '')) IS NOT NULL") ::
-          where :: Nil)})"
+      s"COUNT(${
+        conditionalSelection(column,
+          Some(s"(SELECT regexp_matches(${toString(column)}, '$pattern', '')) IS NOT NULL") ::
+            where :: Nil)
+      })"
     }
 
     s"COUNT(${conditionalSelection(column, where)})" :: conditionalCount(where) ::
-    countOccurrencesOf(integerPattern) :: countOccurrencesOf(fractionPattern) ::
-    countOccurrencesOf(booleanPattern) :: countOccurrencesOf(nullPattern) :: s"MIN($column)" :: Nil
+      countOccurrencesOf(integerPattern) :: countOccurrencesOf(fractionPattern) ::
+      countOccurrencesOf(booleanPattern) :: s"MIN($column)" :: Nil
   }
 
   override def fromAggregationResult(result: JdbcRow, offset: Int): Option[DataTypeHistogram] = {
-    ifNoNullsIn(result, offset, 7) { _ =>
-      // column at offset + 6 contains minimal value of the column
-      val dataType = result.row(offset + 6) match {
-        case _: Integer => DataTypeInstances.Integral
+    ifNoNullsIn(result, offset, 6) { _ =>
+      // column at offset + 5 contains minimum value of the column
+      val dataType = result.row(offset + 5) match {
+        case _: Integer | _: Byte | _: Short | _: Long => DataTypeInstances.Integral
         case _: Boolean => DataTypeInstances.Boolean
-        case _: Long | Float | Double | Numeric => DataTypeInstances.Fractional
+        case _: Double | _: Float => DataTypeInstances.Fractional
         case _ => DataTypeInstances.Unknown
       }
 
@@ -91,15 +87,13 @@ case class JdbcDataType(
         val numIntegers = result.getLong(offset + 2)
         val numFractions = result.getLong(offset + 3)
         val numBooleans = result.getLong(offset + 4)
-        val numNulls = result.getLong(offset + 5)
 
         DataTypeHistogram(
-          numNull = numNulls + (numRows - numNotNulls),
+          numNull = numRows - numNotNulls,
           numFractional = numFractions,
           numIntegral = numIntegers,
           numBoolean = numBooleans,
-          numString = numRows - (numRows - numNotNulls) - numBooleans - numIntegers -
-            numFractions - numNulls
+          numString = numRows - (numRows - numNotNulls) - numBooleans - numIntegers - numFractions
         )
       }
     }
