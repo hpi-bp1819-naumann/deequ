@@ -5,4 +5,6 @@ target/.travis/public-signing-key.gpg
 core/target
 target/
 runtime-spark/target
-
+runtime-jdbc/target
+**/analyzerTests.db?cache=shared&mode=memory
+**/jdbc.properties
