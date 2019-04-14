@@ -49,7 +49,7 @@ class MetricsRepositoryAnomalyDetectionIntegrationTest extends WordSpec with Mat
     "work using the FileSystemMetricsRepository" in withJdbc { connection =>
 
       val tempDir = TempFileUtils.tempDir("fileSystemRepositoryTest")
-      val repository = DiskMetricsRepository(tempDir + "repository-test.json")
+      val repository = DiskMetricsRepository(tempDir)// + "repository-test.json")
 
       testAnomalyDetection(connection, repository)
     }

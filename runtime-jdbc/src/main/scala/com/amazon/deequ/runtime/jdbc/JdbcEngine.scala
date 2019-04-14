@@ -95,8 +95,8 @@ case class JdbcEngine(connection: Connection) extends Engine[Connection] {
 
     val table = dataset.asInstanceOf[JdbcDataset].table
 
-    /*RDDColumnProfiler.profile(
-      df,
+    RDDColumnProfiler.profile(
+      dataset.asInstanceOf[JdbcDataset].table,
       restrictToColumns,
       printStatusUpdates,
       lowCardinalityHistogramThreshold,
@@ -104,8 +104,7 @@ case class JdbcEngine(connection: Connection) extends Engine[Connection] {
       reuseExistingResultsUsingKey,
       failIfResultsForReusingMissing,
       saveInMetricsRepositoryUsingKey
-    )*/
-    throw new Exception("not yet implemented")
+    )
   }
 }
 

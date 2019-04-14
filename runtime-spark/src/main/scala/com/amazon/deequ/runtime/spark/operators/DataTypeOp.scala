@@ -151,6 +151,9 @@ case class DataTypeOp(
   }
 
   override def fromAggregationResult(result: Row, offset: Int): Option[DataTypeHistogram] = {
+
+    result
+
     ifNoNullsIn(result, offset) { _ =>
       DataTypeHistogram.fromBytes(result.getAs[Array[Byte]](offset))
     }

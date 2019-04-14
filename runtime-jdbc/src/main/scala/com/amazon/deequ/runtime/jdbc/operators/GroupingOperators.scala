@@ -76,8 +76,7 @@ object FrequencyBasedOperator {
          |    GROUP BY $groupByColumns
         """.stripMargin
 
-    val statement = connection.createStatement()
-    statement.execute(query)
+    table.execute(query)
 
     FrequenciesAndNumRows(frequenciesTable, numRows)
   }

@@ -68,9 +68,7 @@ trait FixtureSupport {
          |DROP TABLE IF EXISTS
          | ${table.name}
        """.stripMargin
-
-    val stmt = connection.createStatement()
-    stmt.execute(deletionQuery)
+    table.execute(deletionQuery)
 
     val creationQuery =
       s"""
@@ -79,16 +77,20 @@ trait FixtureSupport {
          |  ${schema.toString}
        """.stripMargin
 
-    stmt.execute(creationQuery)
+    table.execute(creationQuery)
 
     if (values.nonEmpty) {
       val sqlValues = values.map(row => {
         row.map({
-          case value: String => "'" + value + "'"
+          case str: String => "'" + str.replace("'", "''") + "'"
+          case bool: Boolean => "'" + bool + "'"
           case ts: Timestamp => "\"" + ts + "\""
-          case value => s"$value"
-        }).mkString("""(""", """,""", """)""")
-      }).mkString(""",""")
+          case value => value match {
+            case null => s"${null}"
+            case _ => value.toString
+          }
+        }).mkString("(", ", " , ")")
+      }).mkString(",")
 
       val insertQuery =
         s"""
@@ -98,7 +100,7 @@ trait FixtureSupport {
            | $sqlValues
          """.stripMargin
 
-      stmt.execute(insertQuery)
+      table.execute(insertQuery)
     }
     table
   }

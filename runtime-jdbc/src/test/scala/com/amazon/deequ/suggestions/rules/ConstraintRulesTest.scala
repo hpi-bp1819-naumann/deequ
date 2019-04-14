@@ -327,11 +327,11 @@ class ConstraintRulesTest extends WordSpec with FixtureSupport with JdbcContextS
 
     "jdbc return evaluable constraint candidates" in withJdbc { connection =>
 
-      val dfWithColumnCandidate = JdbcDataset(getTableWithCategoricalColumn(connection, 10,
-        Seq("'_[a_[]}!@'", "_b%%__")))
+      val tableWithColumnCandidate = JdbcDataset(getTableWithCategoricalColumn(connection, 10,
+        Seq("''_[a_[]}!@''", "_b%%__")))
 
       val distribution = Distribution(Map(
-        "'_[a_[]}!@'" -> DistributionValue(4, 0.4),
+        "''_[a_[]}!@''" -> DistributionValue(4, 0.4),
         "_b%%__" -> DistributionValue(6, 0.6)),
         10)
 
@@ -342,7 +342,7 @@ class ConstraintRulesTest extends WordSpec with FixtureSupport with JdbcContextS
         .addConstraint(CategoricalRangeRule().candidate(fakeColumnProfile, 100).constraint)
 
       val verificationResult = VerificationSuite()
-        .onData(dfWithColumnCandidate)
+        .onData(tableWithColumnCandidate)
         .addCheck(check)
         .run()
 
@@ -355,10 +355,10 @@ class ConstraintRulesTest extends WordSpec with FixtureSupport with JdbcContextS
       "if category names contain potentially problematic characters" in withJdbc { connection =>
 
       val dfWithColumnCandidate = JdbcDataset(getTableWithCategoricalColumn(connection, 10,
-        Seq("'_[a_[]}!@'", "_b%%__")))
+        Seq("''_[a_[]}!@''", "_b%%__")))
 
       val distribution = Distribution(Map(
-        "'_[a_[]}!@'" -> DistributionValue(4, 0.4),
+        "''_[a_[]}!@''" -> DistributionValue(4, 0.4),
         "_b%%__" -> DistributionValue(6, 0.6)),
         10)
 
@@ -381,10 +381,10 @@ class ConstraintRulesTest extends WordSpec with FixtureSupport with JdbcContextS
     "return working code to add constraint to check" in withJdbc { connection =>
 
       val dfWithColumnCandidate = JdbcDataset(getTableWithCategoricalColumn(connection, 10,
-        Seq("'_[a_[]}!@'", "_b%%__")))
+        Seq("\'_[a_[]}!@\'", "_b%%__")))
 
       val distribution = Distribution(Map(
-        "'_[a_[]}!@'" -> DistributionValue(4, 0.4),
+        "\'_[a_[]}!@\'" -> DistributionValue(4, 0.4),
         "_b%%__" -> DistributionValue(6, 0.6)),
         10)
 

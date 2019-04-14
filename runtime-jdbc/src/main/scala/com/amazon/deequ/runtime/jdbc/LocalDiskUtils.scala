@@ -16,13 +16,28 @@
 
 package com.amazon.deequ.runtime.jdbc
 
+import java.io
 import java.io._
-import java.nio.charset.Charset
+import java.nio.file.{Files, Paths}
+
+import scala.reflect.io.File
 
 
 private[deequ] object LocalDiskUtils {
 
-  /* Helper function to read from a binary file on S3 */
+  def exists(path: String): Boolean = {
+    Files.exists(Paths.get(path))
+  }
+
+  def delete(path: String): Unit = {
+    File(path).delete()
+  }
+
+  def rename(pathFrom: String, pathTo: String): Unit = {
+    new io.File(pathFrom).renameTo(new io.File(pathTo))
+  }
+
+  /* Helper function to read from a binary file on Disk */
   def readFromFileOnDisk[T](path: String)
                            (readFunc: DataInputStream => T): T = {
 
@@ -37,7 +52,7 @@ private[deequ] object LocalDiskUtils {
     }
   }
 
-  /* Helper function to write to a binary file on S3 */
+  /* Helper function to write to a binary file on Disk */
   def writeToFileOnDisk(path: String, overwrite: Boolean = false)
                        (writeFunc: DataOutputStream => Unit): Unit = {
 

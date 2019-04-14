@@ -18,6 +18,7 @@ package com.amazon.deequ.runtime.jdbc.operators
 
 import java.io.FileReader
 import java.sql.{Connection, ResultSet}
+import java.util.UUID
 
 import com.amazon.deequ.runtime.jdbc.operators.FrequencyBasedOperatorsUtils.uniqueTableName
 import org.postgresql.copy.CopyManager
@@ -48,10 +49,18 @@ case class Table (name: String,
 
     println(query)
 
-    val result = jdbcConnection.createStatement().executeQuery(query)
+    val stmt = jdbcConnection.createStatement()
+    val result = stmt.executeQuery(query)
     // TODO: Test return value of next() and throw exception
     result.next()
-    JdbcRow.from(result)
+    val aggResult = JdbcRow.from(result)
+
+    try {
+      aggResult
+    } finally {
+      result.close()
+      stmt.close()
+    }
   }
 
   private[deequ] def rows(): Seq[JdbcRow] = {
@@ -85,7 +94,8 @@ case class Table (name: String,
          |LIMIT 0
         """.stripMargin
 
-    val result = jdbcConnection.createStatement().executeQuery(query)
+    val stmt = jdbcConnection.createStatement()
+    val result = stmt.executeQuery(query)
 
     // TODO: Test return value of next() and throw exception
     val metaData = result.getMetaData
@@ -95,6 +105,9 @@ case class Table (name: String,
     for (col <- 1 to colCount) {
       cols(metaData.getColumnLabel(col)) = JdbcDataType.fromSqlType(metaData.getColumnType(col))
     }
+
+    result.close()
+    stmt.close()
 
     cols
   }
@@ -146,7 +159,7 @@ case class Table (name: String,
            | AS newTable
         """.stripMargin
 
-      table.jdbcConnection.createStatement().execute(query)
+      table.execute(query)
       table
     }
     else {
@@ -157,30 +170,96 @@ case class Table (name: String,
   private[deequ] def withColumn(columnName: String, dataType: JdbcDataType, fillQuery: Option[String]): Table = {
 
     var query = s"ALTER TABLE $name ADD COLUMN $columnName ${dataType.toString()}"
-    jdbcConnection.createStatement().execute(query)
+    val stmt = jdbcConnection.createStatement()
+    stmt.execute(query)
+    stmt.close()
 
     if (fillQuery.isDefined) {
-      query = s"UPDATE $name SET $columnName = (SELECT ${fillQuery.get} FROM $name)"
-      jdbcConnection.createStatement().execute(query)
+      query = s"UPDATE $name SET $columnName = ${fillQuery.get}"
+      val stmt = jdbcConnection.createStatement()
+      stmt.execute(query)
+      stmt.close()
     }
 
     this
   }
 
+  private[deequ] def execute(sql: String): Unit = {
+    val stmt = jdbcConnection.createStatement()
+    stmt.execute(sql)
+    stmt.close()
+  }
+
+  private[this] def isSQLite(): Boolean = {
+    jdbcConnection.getMetaData.getDatabaseProductName == "SQLite"
+  }
+
+  private[this] def dropWorkaround(columnName: String): Unit = {
+
+    val cols = (columns().keySet - columnName).toSeq.mkString(", ")
+    val tempTableName = s"${name}_${UUID.randomUUID().toString.replace("-", "")}"
+
+    var query =
+      s"""
+         |CREATE TABLE $tempTableName AS
+         | SELECT $cols
+         | FROM $name;
+        """.stripMargin
+    execute(query)
+
+    query =
+      s"""
+         |DROP TABLE $name;
+        """.stripMargin
+    execute(query)
+
+    query =
+      s"""
+         |ALTER TABLE $tempTableName RENAME TO $name;
+        """.stripMargin
+    execute(query)
+  }
+
   private[deequ] def drop(columnName: String): Table = {
 
-    val query = s"ALTER TABLE $name DROP $columnName"
-    val stmt = jdbcConnection.createStatement()
-    stmt.execute(query)
+    // dropping columns is not supported in SQLite
+    if (isSQLite()) {
+      dropWorkaround(columnName)
+    } else {
+      val query = s"ALTER TABLE $name DROP COLUMN $columnName"
+      execute(query)
+    }
 
     this
   }
 
+  private[this] def withColumnRenamedWorkaround(oldColumn: String, newColumn: String): Unit = {
+
+    val cols = (columns().keySet - oldColumn).toSeq
+    val columnsWithRenamed = (cols :+ s"$oldColumn AS $newColumn").mkString(", ")
+
+    val tempTableName = s"${name}_${UUID.randomUUID().toString.replace("-", "")}"
+
+    val query =
+      s"""
+         |CREATE TABLE $tempTableName AS
+         | SELECT $columnsWithRenamed
+         | FROM $name;
+        """.stripMargin
+    execute(query)
+    execute(s"DROP TABLE $name;")
+    execute(s"ALTER TABLE $tempTableName RENAME TO $name")
+  }
+
   private[deequ] def withColumnRenamed(oldColumn: String, newColumn: String): Table = {
 
-    val query = s"ALTER TABLE $name RENAME $oldColumn TO $newColumn"
-    val stmt = jdbcConnection.createStatement()
-    stmt.execute(query)
+    // renaming columns is not supported in SQLite
+    if (isSQLite()) {
+      withColumnRenamedWorkaround(oldColumn, newColumn)
+    } else {
+      val query = s"ALTER TABLE $name RENAME COLUMN $oldColumn TO $newColumn"
+      execute(query)
+    }
 
     this
   }

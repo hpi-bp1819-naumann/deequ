@@ -313,7 +313,7 @@ case class Check(
 
     val countDistinct = CountDistinct(Seq(column))
     addConstraint(
-      StatisticConstraint[Distribution, Long](countDistinct, assertion, Some(_.numberOfBins), hint,
+      StatisticConstraint[Double, Long](countDistinct, assertion, Some(_.toLong), hint = hint,
         name = Some(s"CountDistinctConstraint($countDistinct)"))
     )
   }

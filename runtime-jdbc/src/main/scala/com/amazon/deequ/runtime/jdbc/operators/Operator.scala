@@ -494,8 +494,8 @@ private[deequ] object Operators {
     DoubleMetric(entity, name, instance, Success(value))
   }
 
-  def emptyStateException(analyzer: Operator[_, _]): EmptyStateException = {
-    new EmptyStateException(s"Empty state for analyzer $analyzer, all input values were NULL.")
+  def emptyStateException(operator: Operator[_, _]): EmptyStateException = {
+    new EmptyStateException(s"Empty state for operator $operator, all input values were NULL.")
   }
 
   def metricFromEmpty(

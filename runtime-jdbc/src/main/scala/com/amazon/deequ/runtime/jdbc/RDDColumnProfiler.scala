@@ -95,12 +95,12 @@ object RDDColumnProfiler {
     // Ensure that all desired columns exist
     restrictToColumns.foreach { restrictToColumns =>
       restrictToColumns.foreach { columnName =>
-        require(data.columns().keySet.contains(columnName), s"Unable to find column $columnName")
+        require(data.schema().fields.map(_.name).contains(columnName), s"Unable to find column $columnName")
       }
     }
 
     // Find columns we want to profile
-    val relevantColumns = getRelevantColumns(data.columns(), restrictToColumns)
+    val relevantColumns = getRelevantColumns(data.schema(), restrictToColumns)
 
     // First pass
     if (printStatusUpdates) {
@@ -152,7 +152,7 @@ object RDDColumnProfiler {
     }
 
     // We compute exact histograms for all low-cardinality string columns, find those here
-    val targetColumnsForHistograms = findTargetColumnsForHistograms(data.columns(), genericStatistics,
+    val targetColumnsForHistograms = findTargetColumnsForHistograms(data.schema(), genericStatistics,
       lowCardinalityHistogramThreshold)
 
     // Find out, if we have values for those we can reuse
@@ -182,13 +182,13 @@ object RDDColumnProfiler {
   }
 
   private[this] def getRelevantColumns(
-      columns: mutable.LinkedHashMap[String, JdbcDataType],
+      columns: JdbcStructType,
       restrictToColumns: Option[Seq[String]])
     : Seq[String] = {
 
-    columns.keys
-      .filter { field => restrictToColumns.isEmpty || restrictToColumns.get.contains(field) }
-      .toSeq
+    columns.fields
+      .filter { field => restrictToColumns.isEmpty || restrictToColumns.get.contains(field.name) }
+      .map(_.name)
   }
 
   private[this] def getAnalyzersForGenericStats(
@@ -203,9 +203,9 @@ object RDDColumnProfiler {
         val name = field._1
 
         if (field._2 == StringType) {
-          Seq(CompletenessOp(name), /* ApproxCountDistinctOp(name), */ DataTypeOp(name))
+          Seq(CompletenessOp(name), CountDistinctOp(name), /* TODO approx ApproxCountDistinctOp(name), */ DataTypeOp(name))
         } else {
-          Seq(CompletenessOp(name) /*, ApproxCountDistinctOp(name) */)
+          Seq(CompletenessOp(name), CountDistinctOp(name) /* TODO approx ApproxCountDistinctOp(name) */)
         }
       }.toSeq
   }
@@ -333,10 +333,10 @@ object RDDColumnProfiler {
         analyzer.column -> typeCounts
       }
 
-    val approximateNumDistincts = Map[String, Long]() /* results.metricMap
-      .collect { case (analyzer: ApproxCountDistinctOp, metric: DoubleMetric) =>
-        analyzer.column -> metric.value.get.toLong
-      } */
+    val approximateNumDistincts = results.metricMap
+      .collect { case (analyzer: CountDistinctOp /* TODO approx ApproxCountDistinctOp*/, metric: DoubleMetric) =>
+        analyzer.columns.head -> metric.value.get.toLong //TODO approx analyzer.column
+      }
 
     val completenesses = results.metricMap
       .collect { case (analyzer: CompletenessOp, metric: DoubleMetric) =>
@@ -460,15 +460,15 @@ object RDDColumnProfiler {
    * (2) have less than `lowCardinalityHistogramThreshold` approximate distinct values
    */
   private[this] def findTargetColumnsForHistograms(
-      schema: mutable.LinkedHashMap[String, JdbcDataType],
+      schema: JdbcStructType,
       genericStatistics: GenericColumnStatistics,
       lowCardinalityHistogramThreshold: Long)
     : Seq[String] = {
 
-    val originalStringOrBooleanColumns = schema
-      .flatMap { field =>
-        if (field._2 == StringType || field._2 == BooleanType) {
-          Some(field._1)
+    val originalStringOrBooleanColumns = schema.fields
+      .flatMap { field: JdbcStructField =>
+        if (field.dataType == StringType || field.dataType == BooleanType) {
+          Some(field.name)
         } else {
           None
         }
@@ -499,7 +499,7 @@ object RDDColumnProfiler {
       .zipWithIndex
       .toMap
 
-    /* val counts = data.rdd
+    val counts = data.rows()
       .flatMap { row =>
         targetColumns.map { column =>
 
@@ -507,13 +507,14 @@ object RDDColumnProfiler {
           val valueInColumn = if (row.isNullAt(index)) {
             HistogramOp.NullFieldReplacement
           } else {
-            row.get(index).toString
+            row.row(index).toString
           }
 
           (column -> valueInColumn, 1)
         }
       }
-      .countByKey()
+      .groupBy(_._1)
+      .map(seq => (seq._1, seq._2.map(_._2).sum))
 
     // Compute the empirical distribution per column from the counts
     targetColumns.map { targetColumn =>
@@ -530,9 +531,7 @@ object RDDColumnProfiler {
 
       targetColumn -> Distribution(values, numberOfBins = values.size)
     }
-    .toMap */
-
-    throw new Exception("Not yet implemented")
+    .toMap
   }
 
   def getHistogramsForThirdPass(

@@ -164,13 +164,34 @@ object DiskMetricsRepository {
   private[jdbc] def writeToFileOnDisk(path: String, overwrite: Boolean = false)
                        (writeFunc: DataOutputStream => Unit): Unit = {
 
+    // Create, rename and delete are atomic operations, at least should be according to spec
+    // Create temp file
     val uuid = randomUUID().toString
-    LocalDiskUtils.writeToFileOnDisk(s"$path/$uuid.json", overwrite)(writeFunc)
+    val qualifiedPath = asQualifiedPath(path)
+    val tempQualifiedPath = s"$path/$uuid.json"
+
+    LocalDiskUtils.writeToFileOnDisk(tempQualifiedPath, overwrite)(writeFunc)
+
+    // Delete first file
+    if (LocalDiskUtils.exists(qualifiedPath)) {
+      LocalDiskUtils.delete(qualifiedPath)
+    }
+    // Rename temp file
+    LocalDiskUtils.rename(tempQualifiedPath, qualifiedPath)
   }
 
   private[jdbc] def readFromFileOnDisk[T](path: String)
                            (readFunc: DataInputStream => T): Option[T] = {
 
-    Some(LocalDiskUtils.readFromFileOnDisk[T](path)(readFunc))
+    try {
+      val qualifiedPath = asQualifiedPath(path)
+      Some(LocalDiskUtils.readFromFileOnDisk[T](qualifiedPath)(readFunc))
+    } catch {
+      case e: FileNotFoundException => None
+    }
+  }
+
+  private[this] def asQualifiedPath(path: String): String = {
+    s"$path.json"
   }
 }

@@ -57,11 +57,15 @@ package object jdbc {
     if (values.nonEmpty) {
       val sqlValues = values.map(row => {
         row.map({
-          case value: String => "'" + value + "'"
+          case str: String => "'" + str.replace("'", "''") + "'"
+          case bool: Boolean => "'" + bool + "'"
           case ts: Timestamp => "\"" + ts + "\""
-          case value => s"$value"
-        }).mkString("""(""", """,""", """)""")
-      }).mkString(""",""")
+          case value => value match {
+            case null => s"${null}"
+            case _ => value.toString
+          }
+        }).mkString("(", ", " , ")")
+      }).mkString(",")
 
       val insertQuery =
         s"""
