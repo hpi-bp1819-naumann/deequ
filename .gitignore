@@ -8,3 +8,4 @@ runtime-spark/target
 runtime-jdbc/target
 **/analyzerTests.db?cache=shared&mode=memory
 **/jdbc.properties
+.DS_Store
