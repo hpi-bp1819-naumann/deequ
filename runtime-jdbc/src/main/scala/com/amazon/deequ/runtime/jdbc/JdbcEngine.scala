@@ -240,6 +240,4 @@ object JdbcEngine {
     val engine = JdbcEngine(data.jdbcConnection)
     engine.compute(JdbcDataset(data), statistics)
   }
-
-
 }

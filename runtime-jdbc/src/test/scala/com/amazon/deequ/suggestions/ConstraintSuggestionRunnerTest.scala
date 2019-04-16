@@ -16,14 +16,10 @@
 
 package com.amazon.deequ.suggestions
 
-import com.amazon.deequ.JdbcContextSpec
-import com.amazon.deequ.utils.FixtureSupport
-import org.scalatest.{Matchers, WordSpec}
+//class ConstraintSuggestionRunnerTest extends WordSpec with Matchers with JdbcContextSpec
+//  with FixtureSupport {
 
-class ConstraintSuggestionRunnerTest extends WordSpec with Matchers with JdbcContextSpec
-  with FixtureSupport {
-
-  "Constraint Suggestion Suite" should {
+//  "Constraint Suggestion Suite" should {
 
 //    "save and reuse existing results for constraint suggestion runs" in
 //      withMonitorableSparkSession { (sparkSession, sparkMonitor) =>
@@ -97,7 +93,7 @@ class ConstraintSuggestionRunnerTest extends WordSpec with Matchers with JdbcCon
 //        assert(analyzerContext.metricMap.toSet
 //          .subsetOf(repository.loadByKey(resultKey).get.metricMap.toSet))
 //      }
-
+//
 //    "only append results to repository without unnecessarily overwriting existing ones" in
 //      withSparkSession { sparkSession =>
 //
@@ -156,7 +152,7 @@ class ConstraintSuggestionRunnerTest extends WordSpec with Matchers with JdbcCon
 //      assert(expectedAnalyzerContextOnLoadByKey.metricMap.toSet
 //          .subsetOf(repository.loadByKey(resultKey).get.metricMap.toSet))
 //    }
-
+//
 //    "should write output files to specified locations" in withSparkSession { sparkSession =>
 //
 //      val engine = SparkEngine(sparkSession)
@@ -185,21 +181,21 @@ class ConstraintSuggestionRunnerTest extends WordSpec with Matchers with JdbcCon
 //        inputStream => assert(inputStream.read() > 0)
 //      }
 //    }
-  }
+//  }
 
-  private[this] def assertConstraintSuggestionResultsEquals(
-    expectedResult: ConstraintSuggestionResult,
-    actualResult: ConstraintSuggestionResult): Unit = {
-
-    assert(expectedResult.columnProfiles == actualResult.columnProfiles)
-
-    val expectedConstraintSuggestionJson = ConstraintSuggestionResult
-      .getConstraintSuggestionsAsJson(expectedResult)
-
-
-    val actualConstraintSuggestionJson = ConstraintSuggestionResult
-      .getConstraintSuggestionsAsJson(actualResult)
-
-    assert(expectedConstraintSuggestionJson == actualConstraintSuggestionJson)
-  }
-}
+//  private[this] def assertConstraintSuggestionResultsEquals(
+//    expectedResult: ConstraintSuggestionResult,
+//    actualResult: ConstraintSuggestionResult): Unit = {
+//
+//    assert(expectedResult.columnProfiles == actualResult.columnProfiles)
+//
+//    val expectedConstraintSuggestionJson = ConstraintSuggestionResult
+//      .getConstraintSuggestionsAsJson(expectedResult)
+//
+//
+//    val actualConstraintSuggestionJson = ConstraintSuggestionResult
+//      .getConstraintSuggestionsAsJson(actualResult)
+//
+//    assert(expectedConstraintSuggestionJson == actualConstraintSuggestionJson)
+//  }
+//}

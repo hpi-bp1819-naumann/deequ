@@ -51,7 +51,7 @@ trait Operator[S <: State[_], +M <: Metric[_]] {
     * @return
     */
   def preconditions: Seq[Table => Unit] = {
-    Seq.empty
+    Preconditions.hasTable() :: Nil
   }
 
   /**
@@ -184,7 +184,7 @@ abstract class StandardScanShareableOperator[S <: DoubleValuedState[_]](
   }
 
   override def preconditions: Seq[Table => Unit] = {
-    additionalPreconditions() ++ super.preconditions
+    super.preconditions ++ additionalPreconditions()
   }
 
   protected def additionalPreconditions(): Seq[Table => Unit] = {
@@ -244,7 +244,7 @@ abstract class GroupingOperator[S <: State[_], +M <: Metric[_]] extends Operator
 
   /** Ensure that the grouping columns exist in the data */
   override def preconditions: Seq[Table => Unit] = {
-    groupingColumns().map { name => Preconditions.hasColumn(name) } ++ super.preconditions
+    super.preconditions ++ groupingColumns().map { name => Preconditions.hasColumn(name) }
   }
 }
 
@@ -276,20 +276,7 @@ object Preconditions {
   /** Specified table exists in the data */
   def hasTable(): Table => Unit = { table =>
 
-    val connection = table.jdbcConnection
-
-    val metaData = connection.getMetaData
-    val result = metaData.getTables(null, null, null, Array[String]("TABLE"))
-
-    var hasTable = false
-
-    while (result.next()) {
-      if (result.getString("TABLE_NAME") == table.name) {
-        hasTable = true
-      }
-    }
-
-    if (!hasTable) {
+    if (!table.exists()) {
       throw new NoSuchTableException(s"Input data does not include table ${table.name}!")
     }
   }

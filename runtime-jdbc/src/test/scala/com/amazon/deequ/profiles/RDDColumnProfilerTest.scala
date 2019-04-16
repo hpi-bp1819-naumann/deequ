@@ -18,9 +18,9 @@ package com.amazon.deequ.profiles
 
 import com.amazon.deequ.JdbcContextSpec
 import com.amazon.deequ.metrics.{Distribution, DistributionValue}
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers._
 import com.amazon.deequ.runtime.jdbc.RDDColumnProfiler
 import com.amazon.deequ.runtime.jdbc.operators.BooleanType
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
 import com.amazon.deequ.statistics.DataTypeInstances
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
@@ -32,7 +32,7 @@ class RDDColumnProfilerTest extends WordSpec with Matchers with JdbcContextSpec
 
     assert(expected.column == actual.column)
     assert(expected.completeness == actual.completeness)
-//    assert(math.abs(expected.approximateNumDistinctValues -
+//    TODO approx  assert(math.abs(expected.approximateNumDistinctValues -
 //      actual.approximateNumDistinctValues) <= 1)
     assert(expected.dataType == actual.dataType)
     assert(expected.isDataTypeInferred == expected.isDataTypeInferred)
@@ -78,8 +78,6 @@ class RDDColumnProfilerTest extends WordSpec with Matchers with JdbcContextSpec
       withJdbc { connection =>
 
       val data = getTableCompleteAndInCompleteColumns(connection)
-
-      println(data.rows())
 
       val actualColumnProfile = RDDColumnProfiler.profile(data, Option(Seq("item")), false, 1)
         .profiles("item")
@@ -179,7 +177,7 @@ class RDDColumnProfilerTest extends WordSpec with Matchers with JdbcContextSpec
     "return histograms for boolean columns" in withJdbc { connection =>
       val attribute = "attribute"
       val nRows = 6
-      val data = com.amazon.deequ.tableWithColumn(
+      val data = tableWithColumn(
         attribute,
         BooleanType,
         connection,

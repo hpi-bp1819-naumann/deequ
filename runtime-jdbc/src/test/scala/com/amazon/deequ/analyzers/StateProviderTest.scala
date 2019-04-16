@@ -19,14 +19,11 @@ package analyzers
 
 import java.sql.Connection
 
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
+import com.amazon.deequ.runtime.jdbc._
 import com.amazon.deequ.runtime.jdbc.operators._
-import com.amazon.deequ.runtime.jdbc.{FileSystemJdbcStateProvider, InMemoryJdbcStateProvider, JdbcStateLoader, JdbcStatePersister}
 import com.amazon.deequ.statistics.Patterns
 import com.amazon.deequ.utils.{FixtureSupport, TempFileUtils}
 import org.scalatest.{Matchers, WordSpec}
-
-import scala.collection.mutable
 
 class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with FixtureSupport {
 
@@ -54,7 +51,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
         StandardDeviationOp("price"), data)
 
       assertCorrectlyRestoresState[DataTypeHistogram](provider, provider, DataTypeOp("item"), data)
-      //assertCorrectlyRestoresStateForHLL(provider, provider, ApproxCountDistinctOp("att1"), data)
+      // TODO approx assertCorrectlyRestoresStateForHLL(provider, provider, ApproxCountDistinctOp("att1"), data)
       assertCorrectlyRestoresState[CorrelationState](provider, provider,
         CorrelationOp("count", "price"), data)
 
@@ -63,7 +60,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
         UniquenessOp(Seq("att1", "count")), data)
       assertCorrectlyRestoresFrequencyBasedState(provider, provider, EntropyOp("att1"), data)
 
-      //assertCorrectlyApproxQuantileState(provider, provider, ApproxQuantileOp("price", 0.5), data)
+      // TODO approx assertCorrectlyApproxQuantileState(provider, provider, ApproxQuantileOp("price", 0.5), data)
     }
 
     "correctly restore their state from the filesystem" in withJdbc { connection =>
@@ -91,7 +88,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
         StandardDeviationOp("price"), data)
 
       assertCorrectlyRestoresState[DataTypeHistogram](provider, provider, DataTypeOp("item"), data)
-      //assertCorrectlyRestoresStateForHLL(provider, provider, ApproxCountDistinctOp("att1"), data)
+      // TODO approx assertCorrectlyRestoresStateForHLL(provider, provider, ApproxCountDistinctOp("att1"), data)
       assertCorrectlyRestoresState[CorrelationState](provider, provider,
         CorrelationOp("count", "price"), data)
 
@@ -100,7 +97,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
         UniquenessOp(Seq("att1", "count")), data)
       assertCorrectlyRestoresFrequencyBasedState(provider, provider, EntropyOp("att1"), data)
 
-      //assertCorrectlyApproxQuantileState(provider, provider, ApproxQuantileOp("price", 0.5), data)
+      // TODO approx assertCorrectlyApproxQuantileState(provider, provider, ApproxQuantileOp("price", 0.5), data)
     }
   }
 
@@ -121,7 +118,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
     assert(state == clonedState.get)
   }
 
-  /* def assertCorrectlyApproxQuantileState(
+  /* TODO approx def assertCorrectlyApproxQuantileState(
       persister: JdbcStatePersister,
       loader: JdbcStateLoader,
       analyzer: Operator[ApproxQuantileState, _],
@@ -198,7 +195,7 @@ class StateProviderTest extends WordSpec with Matchers with JdbcContextSpec with
         Seq("6", "a", 21, 78.0),
         Seq("7", null, 12, 0.0))
 
-    fillTableWithData("someData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("someData", schema, data, connection)
   }
 
 }

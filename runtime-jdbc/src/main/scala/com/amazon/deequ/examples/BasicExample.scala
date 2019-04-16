@@ -20,13 +20,17 @@ import com.amazon.deequ.VerificationSuite
 import com.amazon.deequ.checks.CheckStatus._
 import com.amazon.deequ.checks.{Check, CheckLevel}
 import com.amazon.deequ.constraints.ConstraintStatus
-import com.amazon.deequ.examples.ExampleUtils.withJdbc
+import com.amazon.deequ.examples.ExampleUtils._
 import com.amazon.deequ.runtime.jdbc.JdbcDataset
 import com.amazon.deequ.runtime.jdbc.operators.Table
 
 private[examples] object BasicExample extends App {
 
-  withJdbc { connection =>
+  /*
+  * to use a PostgreSQL connection for computation please
+  * change withJdbcForSQLite in the next line to withJdbc
+  */
+  withJdbcForSQLite { connection =>
 
     val data = Table("example_table", connection)
 

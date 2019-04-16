@@ -23,7 +23,6 @@ import com.amazon.deequ.constraints.{Constraint, StatisticConstraint}
 import com.amazon.deequ.metrics.Metric
 import com.amazon.deequ.runtime.jdbc.operators._
 
-import scala.collection.mutable
 import scala.util.{Failure, Random}
 
 private[deequ] sealed trait ApplicabilityResult {
@@ -276,6 +275,6 @@ private[deequ] class Applicability(connection: Connection) {
       cells.toSeq
     }
 
-    fillTableWithData("randomData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("randomData", schema, data, connection, tempTable = true)
   }
 }

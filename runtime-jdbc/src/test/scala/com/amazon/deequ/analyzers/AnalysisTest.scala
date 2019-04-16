@@ -30,30 +30,30 @@ import scala.util.{Failure, Success}
 class AnalysisTest extends WordSpec with Matchers with JdbcContextSpec with FixtureSupport {
 
   "Operators" should {
-    /* "return results for configured operators" in withJdbc { connection =>
-
-      val table = getTableFull(connection)
-
-      val analysisResult = OperatorList()
-        .addAnalyzer(SizeOp())
-        .addAnalyzer(DistinctnessOp(Seq("item")))
-        .addAnalyzer(CompletenessOp("att1"))
-        .addAnalyzer(UniquenessOp(Seq("att1", "att2")))
-        .run(table)
-
-      val successMetricsAsDataFrame = OperatorResults
-        .successMetricsAsDataFrame(connection, analysisResult)
-
-      import connection.implicits._
-      val expected = Seq(
-        ("Dataset", "*", "Size", 4.0),
-        ("Column", "item", "Distinctness", 1.0),
-        ("Column", "att1", "Completeness", 1.0),
-        ("Mutlicolumn", "att1,att2", "Uniqueness", 0.25))
-        .toDF("entity", "instance", "name", "value")
-
-      assertSameRows(successMetricsAsDataFrame, expected)
-    } */
+//    "return results for configured operators" in withJdbc { connection =>
+//
+//      val table = getTableFull(connection)
+//
+//      val analysisResult = OperatorList()
+//        .addAnalyzer(SizeOp())
+//        .addAnalyzer(DistinctnessOp(Seq("item")))
+//        .addAnalyzer(CompletenessOp("att1"))
+//        .addAnalyzer(UniquenessOp(Seq("att1", "att2")))
+//        .run(table)
+//
+//      val successMetricsAsDataFrame = OperatorResults
+//        .successMetricsAsDataFrame(connection, analysisResult)
+//
+//      import connection.implicits._
+//      val expected = Seq(
+//        ("Dataset", "*", "Size", 4.0),
+//        ("Column", "item", "Distinctness", 1.0),
+//        ("Column", "att1", "Completeness", 1.0),
+//        ("Mutlicolumn", "att1,att2", "Uniqueness", 0.25))
+//        .toDF("entity", "instance", "name", "value")
+//
+//      assertSameRows(successMetricsAsDataFrame, expected)
+//    }
 
     "run an individual analyzer only once" in withJdbc { connection =>
       val df = getTableFull(connection)
@@ -89,12 +89,12 @@ class AnalysisTest extends WordSpec with Matchers with JdbcContextSpec with Fixt
         Success(1.707825127659933)))
       resultMetrics should contain(DoubleMetric(Entity.Column, "Minimum", "att1", Success(1.0)))
       resultMetrics should contain(DoubleMetric(Entity.Column, "Maximum", "att1", Success(6.0)))
-      /*resultMetrics should contain(DoubleMetric(Entity.Column, "ApproxCountDistinct", "att1",
-        Success(6.0)))*/
+      /* TODO: approx resultMetrics should contain(DoubleMetric(Entity.Column, "ApproxCountDistinct", "att1",
+        Success(6.0))) */
       resultMetrics should contain(DoubleMetric(Entity.Column, "CountDistinct", "att1",
         Success(6.0)))
-      /*resultMetrics should contain(DoubleMetric(Entity.Column, "ApproxQuantile", "att1",
-        Success(3.0)))*/
+      /* TODO: approx resultMetrics should contain(DoubleMetric(Entity.Column, "ApproxQuantile", "att1",
+        Success(3.0))) */
     }
 
     "return the proper exception for non existing columns" in withJdbc { connection =>
@@ -135,7 +135,7 @@ class AnalysisTest extends WordSpec with Matchers with JdbcContextSpec with Fixt
           Failure(new NoColumnsSpecifiedException(""))))
       }
 
-    /* "return the proper exception when the number of specified columns is not correct " +
+    /* TODO: mutual "return the proper exception when the number of specified columns is not correct " +
       "(and should be greater than 1)" in withJdbc { connection =>
         val df = getTableWithNumericValues(connection)
 
@@ -161,7 +161,7 @@ class AnalysisTest extends WordSpec with Matchers with JdbcContextSpec with Fixt
           .value.compareFailureTypes(Failure(new IllegalAnalyzerParameterException(""))))
       }
 
-    /* "return the proper exception when a quantile number is out of range" in
+    /* TODO: approx "return the proper exception when a quantile number is out of range" in
       withJdbc { connection =>
         val df = getTableWithNumericValues(connection)
 

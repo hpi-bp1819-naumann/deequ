@@ -21,7 +21,6 @@ import java.sql.ResultSet
 import com.amazon.deequ.metrics.{Distribution, DistributionValue, HistogramMetric}
 import com.amazon.deequ.runtime.jdbc.executor._
 
-import scala.collection.mutable
 import scala.util.{Failure, Try}
 
 /**
@@ -68,9 +67,10 @@ case class HistogramOp(
 
     val colCount = metaData.getColumnCount
 
-    var cols = mutable.LinkedHashMap[String, JdbcDataType]()
+    val schema = JdbcStructType()
     for (col <- 1 to colCount) {
-      cols(metaData.getColumnLabel(col)) = StringType
+      val name = metaData.getColumnLabel(col)
+      schema.add(JdbcStructField(name, StringType))
     }
 
     def convertResult(resultSet: ResultSet,
@@ -104,7 +104,7 @@ case class HistogramOp(
     val numRows = frequenciesAndNumRows._2
 
     result.close()
-    Some(FrequenciesAndNumRows.from(table.jdbcConnection, cols, frequencies, numRows))
+    Some(FrequenciesAndNumRows.from(table.jdbcConnection, schema, frequencies, numRows))
   }
 
   override def computeMetricFrom(state: Option[FrequenciesAndNumRows]): HistogramMetric = {
@@ -165,7 +165,7 @@ case class HistogramOp(
   }
 
   override def preconditions: Seq[Table => Unit] = {
-    PARAM_CHECK :: Preconditions.hasTable() :: Preconditions.hasColumn(column) :: Nil
+    super.preconditions :+ Preconditions.hasColumn(column) :+ PARAM_CHECK
   }
 }
 

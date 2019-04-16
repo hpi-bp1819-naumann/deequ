@@ -17,17 +17,15 @@
 package com.amazon.deequ
 package analyzers
 
-import com.amazon.deequ.metrics.{Distribution, DistributionValue, DoubleMetric, Entity, HistogramMetric}
-import com.amazon.deequ.runtime.jdbc._
+import com.amazon.deequ.metrics._
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers._
 import com.amazon.deequ.runtime.jdbc.executor.NoSuchColumnException
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.statistics.{DataTypeInstances, Patterns}
 import com.amazon.deequ.utils.AssertionUtils.TryUtils
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with FixtureSupport {
@@ -48,7 +46,7 @@ class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with Fix
     "compute correct metrics" in withJdbc { connection =>
       val tableMissing = getTableMissing(connection)
 
-      assert(CompletenessOp("someMissingColumn").preconditions.size == 1,
+      assert(CompletenessOp("someMissingColumn").preconditions.size == 3,
         "should check column name availability")
       assert(CompletenessOp("att1").calculate(tableMissing) == DoubleMetric(Entity.Column,
         "Completeness", "att1", Success(0.5)))
@@ -146,7 +144,7 @@ class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with Fix
     }
   }
 
-  /* "MutualInformation analyzer" should {
+  /* TODO mutual "MutualInformation analyzer" should {
     "compute correct metrics " in withJdbc { connection =>
       val tableFull = getTableFull(connection)
       assert(MutualInformationOp("att1", "att2").calculate(tableFull) ==
@@ -214,7 +212,7 @@ class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with Fix
 
       }
     }
-    /* "compute correct metrics after binning if provided" in withJdbc { connection =>
+    /* TODO binning "compute correct metrics after binning if provided" in withJdbc { connection =>
       val customBinner = utable {
         (cnt: String) =>
           cnt match {
@@ -519,7 +517,7 @@ class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with Fix
   }
 
   "Count distinct analyzers" should {
-    /* "compute approximate distinct count for numeric data" in withJdbc { connection =>
+    /* TODO approx "compute approximate distinct count for numeric data" in withJdbc { connection =>
       val table = getTableWithUniqueColumns(connection)
       val result = ApproxCountDistinctOp("uniqueWithNulls").calculate(table).value
 
@@ -543,7 +541,7 @@ class OperatorTests extends WordSpec with Matchers with JdbcContextSpec with Fix
       }
   }
 
-  /* "Approximate quantile analyzer" should {
+  /* TODO approx "Approximate quantile analyzer" should {
 
     "approximate quantile 0.5 within acceptable error bound" in
       withJdbc { connection =>

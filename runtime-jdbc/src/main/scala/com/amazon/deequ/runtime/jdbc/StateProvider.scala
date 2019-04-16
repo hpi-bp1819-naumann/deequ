@@ -20,9 +20,9 @@ import java.sql.Connection
 import java.util.concurrent.ConcurrentHashMap
 
 import com.amazon.deequ.runtime.jdbc.operators._
+import com.amazon.deequ.runtime.{StateLoader, StatePersister}
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
 
 private object StateInformation {
@@ -32,13 +32,13 @@ private object StateInformation {
 }
 
 /** Load a stored state for an operator */
-trait JdbcStateLoader {
+trait JdbcStateLoader extends StateLoader[Connection] {
   def load[S <: State[_]](operator: Operator[S, _],
                           connection: Option[Connection] = None): Option[S]
 }
 
 /** Persist a state for an operator */
-trait JdbcStatePersister {
+trait JdbcStatePersister extends StatePersister[Connection] {
   def persist[S <: State[_]](operator: Operator[S, _], state: S)
 }
 
@@ -214,16 +214,16 @@ case class FileSystemJdbcStateProvider(
 
       val (cols, data) = state.frequencies()
 
-      out.writeInt(cols.size)
+      out.writeInt(cols.fields.size)
 
-      for ((colName: String, colDataType: JdbcDataType) <- cols) {
-        out.writeInt(colName.length)
-        for (char <- colName) {
+      for (field <- cols.fields) {
+        out.writeInt(field.name.length)
+        for (char <- field.name) {
           out.writeChar(char)
         }
 
-        out.writeInt(colDataType.toString().length)
-        for (char <- colDataType.toString()) {
+        out.writeInt(field.dataType.toString().length)
+        for (char <- field.dataType.toString()) {
           out.writeChar(char)
         }
       }
@@ -312,7 +312,7 @@ case class FileSystemJdbcStateProvider(
 
       val numberOfCols = in.readInt()
 
-      val columns = mutable.LinkedHashMap[String, JdbcDataType]()
+      val schema = JdbcStructType()
 
       for (_ <- 1 to numberOfCols) {
         val colNameLength = in.readInt()
@@ -321,7 +321,7 @@ case class FileSystemJdbcStateProvider(
         val colDataTypeLength = in.readInt()
         val colDataType: String = (for (_ <- 1 to colDataTypeLength) yield in.readChar()).mkString
 
-        columns(colName) = JdbcDataType.fromTypeName(colDataType)
+        schema.add(JdbcStructField(colName, JdbcDataType.fromTypeName(colDataType)))
       }
 
       val numberOfBins = in.readLong()
@@ -351,7 +351,7 @@ case class FileSystemJdbcStateProvider(
 
       val frequencies = readKeyValuePair(Map[Seq[String], Long]())
       val numRows = in.readLong()
-      FrequenciesAndNumRows.from(connection.get, columns, frequencies, numRows)
+      FrequenciesAndNumRows.from(connection.get, schema, frequencies, numRows)
     }
   }
 

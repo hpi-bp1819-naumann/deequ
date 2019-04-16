@@ -14,21 +14,17 @@
   *
   */
 
-package com.amazon.deequ
-package analyzers
+package com.amazon.deequ.analyzers
 
 import java.sql.Connection
 
-import com.amazon.deequ.examples.ExampleUtils
+import com.amazon.deequ.JdbcContextSpec
 import com.amazon.deequ.metrics.Metric
-import com.amazon.deequ.analyzers
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
 import com.amazon.deequ.runtime.jdbc.operators.FrequencyBasedOperatorsUtils.uniqueTableName
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
-
-import scala.collection.mutable
 
 class StateAggregationTests extends WordSpec with Matchers with JdbcContextSpec
   with FixtureSupport {
@@ -44,9 +40,9 @@ class StateAggregationTests extends WordSpec with Matchers with JdbcContextSpec
       correctlyAggregatesStates(connection, UniqueValueRatioOp("attribute" :: "value" :: Nil))
       correctlyAggregatesStates(connection, CompletenessOp("attribute"))
       correctlyAggregatesStates(connection, ComplianceOp("attribute", "attribute like '%facets%'"))
-      //correctlyAggregatesStates(connection, ApproxCountDistinctOp("attribute"))
-      //correctlyAggregatesStates(connection, MutualInformationOp("numbersA", "numbersB"))
-      //TODO: not working correctlyAggregatesStates(connection, CorrelationOp("numbersA", "numbersB"))
+      // TODO approx correctlyAggregatesStates(connection, ApproxCountDistinctOp("attribute"))
+      // TODO mutual correctlyAggregatesStates(connection, MutualInformationOp("numbersA", "numbersB"))
+      correctlyAggregatesStates(connection, CorrelationOp("numbersA", "numbersB"))
     }
   }
 
@@ -67,7 +63,16 @@ class StateAggregationTests extends WordSpec with Matchers with JdbcContextSpec
 
     val metricFromAggregation = analyzer.computeMetricFrom(mergedState)
 
-    assert(metricFromAggregation == metricFromCalculate)
+    assert(metricFromAggregation.instance == metricFromCalculate.instance)
+    assert(metricFromAggregation.entity == metricFromCalculate.entity)
+    assert(metricFromAggregation.name == metricFromCalculate.name)
+    assert(metricFromAggregation.value.isSuccess == metricFromCalculate.value.isSuccess)
+    assert(
+      math.abs(
+        metricFromAggregation.value.get.asInstanceOf[Double] -
+          metricFromCalculate.value.get.asInstanceOf[Double]) < 1e-8)
+
+    //assert(metricFromAggregation == metricFromCalculate)
   }
 
   def initialData(connection: Connection): Table = {
@@ -101,7 +106,7 @@ class StateAggregationTests extends WordSpec with Matchers with JdbcContextSpec
         Seq(1, "B001RS3C2C", "CATEGORY-0-$ims_facets-0-", "extended"),
         Seq(1, "B001RTDRO4", "CATEGORY-0-$ims_facets-0-", "extended"))
 
-      fillTableWithData(uniqueTableName(), schema, data, connection)
+    JdbcHelpers.fillTableWithData(uniqueTableName(), schema, data, connection)
         .withColumn("numbersA", FloatType, Some("RANDOM()"))
         .withColumn("numbersB", FloatType, Some("RANDOM()"))
   }
@@ -137,7 +142,7 @@ class StateAggregationTests extends WordSpec with Matchers with JdbcContextSpec
         Seq(1, "B00C1DDNC6", "BroadITKitem_type_keyword-0-", "lighting-products"),
         Seq(1, "B00CF0URZ6", "BroadITKitem_type_keyword-0-", "lighting-products"))
 
-    fillTableWithData(uniqueTableName(), schema, data, connection)
+    JdbcHelpers.fillTableWithData(uniqueTableName(), schema, data, connection)
       .withColumn("numbersA", FloatType, Some("RANDOM()"))
       .withColumn("numbersB", FloatType, Some("RANDOM()"))
   }

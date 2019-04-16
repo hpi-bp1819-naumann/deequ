@@ -299,7 +299,7 @@ class VerificationSuiteTest extends WordSpec with Matchers with JdbcContextSpec
 
 //    "write output files to specified locations" in withJdbc { connection =>
 //
-//      val df = getTableWithNumericValues(connection)
+//      val data = getTableWithNumericValues(connection)
 //
 //      val checkToSucceed = Check(CheckLevel.Error, "group-1")
 //        .isComplete("att1") // 1.0
@@ -309,16 +309,16 @@ class VerificationSuiteTest extends WordSpec with Matchers with JdbcContextSpec
 //      val checkResultsPath = tempDir + "/check-result.json"
 //      val successMetricsPath = tempDir + "/success-metrics.json"
 //
-//      VerificationSuite().onData(JdbcDataset(df), SparkEngine(df.connection))
+//      VerificationSuite().onData(JdbcDataset(data))
 //        .addCheck(checkToSucceed)
 //        .saveCheckResultsJsonToPath(checkResultsPath)
 //        .saveSuccessMetricsJsonToPath(successMetricsPath)
 //        .run()
 //
-//      TablesUtils.readFromFileOnTables(connection, checkResultsPath) {
+//      LocalDiskUtils.readFromFileOnDisk(checkResultsPath) {
 //        inputStream => assert(inputStream.read() > 0)
 //      }
-//      TablesUtils.readFromFileOnTables(connection, successMetricsPath) {
+//      LocalDiskUtils.readFromFileOnDisk(successMetricsPath) {
 //        inputStream => assert(inputStream.read() > 0)
 //      }
 //    }

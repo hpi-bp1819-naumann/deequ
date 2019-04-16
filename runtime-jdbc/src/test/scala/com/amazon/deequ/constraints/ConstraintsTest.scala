@@ -20,6 +20,7 @@ package constraints
 import com.amazon.deequ.checks.{Check, CheckLevel}
 import com.amazon.deequ.constraints.ConstraintUtils.calculate
 import com.amazon.deequ.metrics.Distribution
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.statistics._
 import com.amazon.deequ.utils.FixtureSupport
@@ -64,7 +65,7 @@ class ConstraintsTest extends WordSpec with Matchers with JdbcContextSpec with F
     }
   }
 
-  /*"Mutual information constraint" should {
+  /* TODO mutual "Mutual information constraint" should {
     "yield a mutual information of 0 for conditionally uninformative columns" in
       withJdbc { connection =>
         val df = getTableWithConditionallyUninformativeColumns(connection)
@@ -74,7 +75,7 @@ class ConstraintsTest extends WordSpec with Matchers with JdbcContextSpec with F
   }*/
 
   "Basic stats constraints" should {
-    /*"assert on approximate quantile" in withJdbc { connection =>
+    /* TODO approx "assert on approximate quantile" in withJdbc { connection =>
       val df = getTableWithNumericValues(connection)
       val constraint = StatisticConstraint[Double, Double](ApproxQuantile("att1", quantile = 0.5), _ == 3.0)
       calculate(constraint, df).status shouldBe ConstraintStatus.Success
@@ -104,7 +105,7 @@ class ConstraintsTest extends WordSpec with Matchers with JdbcContextSpec with F
       val constraint = StatisticConstraint[Double, Double](StandardDeviation("att1"), _ == 1.707825127659933)
       calculate(constraint, df).status shouldBe ConstraintStatus.Success
     }
-    /*"assert on approximate count distinct" in withJdbc { connection =>
+    /* TODO approx "assert on approximate count distinct" in withJdbc { connection =>
       val df = getTableWithNumericValues(connection)
       val constraint = StatisticConstraint[Double, Double](ApproxCountDistinct("att1"), _ == 6.0)
       calculate(constraint, df).status shouldBe ConstraintStatus.Success

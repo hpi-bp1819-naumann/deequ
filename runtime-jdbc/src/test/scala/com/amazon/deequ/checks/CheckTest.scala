@@ -23,6 +23,7 @@ import com.amazon.deequ.anomalydetection.{Anomaly, AnomalyDetectionStrategy}
 import com.amazon.deequ.constraints.{ConstrainableDataTypes, ConstraintStatus}
 import com.amazon.deequ.metrics.{DoubleMetric, Entity}
 import com.amazon.deequ.repository.{InMemoryMetricsRepository, MetricsRepository, ResultKey}
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.runtime.jdbc.{JdbcDataset, JdbcEngine}
 import com.amazon.deequ.statistics._

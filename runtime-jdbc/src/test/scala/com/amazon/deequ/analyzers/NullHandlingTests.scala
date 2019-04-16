@@ -20,13 +20,12 @@ import java.sql.Connection
 
 import com.amazon.deequ.JdbcContextSpec
 import com.amazon.deequ.metrics.DoubleMetric
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
 import com.amazon.deequ.runtime.jdbc.executor.EmptyStateException
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.collection.mutable
 import scala.util.Success
 
 class NullHandlingTests extends WordSpec with Matchers with JdbcContextSpec with FixtureSupport {
@@ -49,7 +48,7 @@ class NullHandlingTests extends WordSpec with Matchers with JdbcContextSpec with
       Seq(null, null, null, 7.0),
       Seq(null, null, null, 8.0))
 
-    fillTableWithData("dataWithNullColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("dataWithNullColumns", schema, data, connection)
   }
 
   "Null schema" should {
@@ -70,7 +69,7 @@ class NullHandlingTests extends WordSpec with Matchers with JdbcContextSpec with
         Some(DataTypeHistogram(8L, 0L, 0L, 0L, 0L))
 
       SumOp("numericCol").computeStateFrom(data) shouldBe None
-      //ApproxQuantileOp("numericCol", 0.5).computeStateFrom(data) shouldBe None
+      // TODO approx ApproxQuantileOp("numericCol", 0.5).computeStateFrom(data) shouldBe None
 
       val stringColFrequenciesAndNumRows = CountDistinctOp("stringCol").computeStateFrom(data)
       assert(stringColFrequenciesAndNumRows.isDefined)
@@ -80,7 +79,7 @@ class NullHandlingTests extends WordSpec with Matchers with JdbcContextSpec with
       // this differs from spark because we also store the number of null values in the table
       stringColFrequenciesAndNumRows.get.frequencies()._2.keys.size shouldBe 1L // TODO 0L
 
-      /*val numericColFrequenciesAndNumRows = MutualInformationOp("numericCol", "numericCol2").computeStateFrom(data)
+      /* TODO mutual val numericColFrequenciesAndNumRows = MutualInformationOp("numericCol", "numericCol2").computeStateFrom(data)
 
       assert(numericColFrequenciesAndNumRows.isDefined)
 
@@ -108,14 +107,14 @@ class NullHandlingTests extends WordSpec with Matchers with JdbcContextSpec with
       dataTypeDistribution.values("Unknown").ratio shouldBe 1.0
 
       assertFailedWithEmptyState(SumOp("numericCol").calculate(data))
-      //assertFailedWithEmptyState(ApproxQuantileOp("numericCol", 0.5).calculate(data))
+      // TODO approx assertFailedWithEmptyState(ApproxQuantileOp("numericCol", 0.5).calculate(data))
 
       CountDistinctOp("stringCol").calculate(data).value shouldBe Success(0.0)
-      //ApproxCountDistinctOp("stringCol").calculate(data).value shouldBe Success(0.0)
+      // TODO approx ApproxCountDistinctOp("stringCol").calculate(data).value shouldBe Success(0.0)
 
       assertFailedWithEmptyState(EntropyOp("stringCol").calculate(data))
-      //assertFailedWithEmptyState(MutualInformationOp("numericCol", "numericCol2").calculate(data))
-      //assertFailedWithEmptyState(MutualInformationOp("numericCol", "numericCol3").calculate(data))
+      // TODO mutual assertFailedWithEmptyState(MutualInformationOp("numericCol", "numericCol2").calculate(data))
+      // TODO mutual assertFailedWithEmptyState(MutualInformationOp("numericCol", "numericCol3").calculate(data))
       assertFailedWithEmptyState(CorrelationOp("numericCol", "numericCol2").calculate(data))
       assertFailedWithEmptyState(CorrelationOp("numericCol", "numericCol3").calculate(data))
     }

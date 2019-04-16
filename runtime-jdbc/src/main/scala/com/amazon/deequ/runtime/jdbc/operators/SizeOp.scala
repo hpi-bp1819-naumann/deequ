@@ -18,6 +18,7 @@ package com.amazon.deequ.runtime.jdbc.operators
 
 import com.amazon.deequ.metrics.Entity
 import com.amazon.deequ.runtime.jdbc.operators.Operators._
+import com.amazon.deequ.runtime.jdbc.operators.Preconditions._
 
 case class NumMatches(numMatches: Long) extends DoubleValuedState[NumMatches] {
 
@@ -43,5 +44,9 @@ case class SizeOp(where: Option[String] = None)
     ifNoNullsIn(result, offset) { _ =>
       NumMatches(result.getLong(offset))
     }
+  }
+
+  override def additionalPreconditions(): Seq[Table => Unit] = {
+    hasNoInjection(where) :: Nil
   }
 }

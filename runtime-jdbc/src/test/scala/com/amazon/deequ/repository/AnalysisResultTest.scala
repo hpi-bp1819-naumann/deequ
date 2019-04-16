@@ -53,9 +53,9 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //      }
 //    }
 //
-//    "correctly return Json that is formatted as expected" in withSparkSession { session =>
+//    "correctly return Json that is formatted as expected" in withJdbc { connection =>
 //
-//        evaluate(session) { results =>
+//        evaluate(connection) { results =>
 //
 //          val resultKey = ResultKey(DATE_ONE, REGION_EU)
 //
@@ -101,18 +101,17 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //      }
 //    }
 //
-//    "only include requested metrics in returned Json" in withSparkSession { session =>
+//    "only include requested metrics in returned Json" in withJdbc { connection =>
 //
-//        evaluate(session) { results =>
+//        evaluate(connection) { results =>
 //
 //          val resultKey = ResultKey(DATE_ONE, REGION_EU)
 //
-//          val metricsForAnalyzers = Seq(Completeness("att1"), Uniqueness(Seq("att1", "att2")))
+//          val statisticsForOperators = Seq(Completeness("att1"), Uniqueness(Seq("att1", "att2")))
 //
 //          val analysisResultsAsJson = AnalysisResult
 //            .getSuccessMetricsAsJson(AnalysisResult(resultKey, results),
 //              metricsForAnalyzers)
-//
 //
 //          val expected =
 //            s"""[{"entity":"Column","instance":"att1","name":"Completeness","value":1.0,
@@ -148,9 +147,9 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //      }
 //    }
 //
-//    "turn tagNames into valid columnNames in returned Json" in withSparkSession { session =>
+//    "turn tagNames into valid columnNames in returned Json" in withJdbc { connection =>
 //
-//      evaluate(session) { results =>
+//      evaluate(connection) { results =>
 //
 //        val resultKey = ResultKey(DATE_ONE, REGION_EU_INVALID)
 //
@@ -194,10 +193,10 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //        assertSameRows(analysisResultsAsDataFrame, expected)
 //      }
 //    }
+
+//    "avoid duplicate columnNames in returned Json" in withJdbc { connection =>
 //
-//    "avoid duplicate columnNames in returned Json" in withSparkSession { session =>
-//
-//      evaluate(session) { results =>
+//      evaluate(connection) { results =>
 //
 //        val resultKey = ResultKey(DATE_ONE, DUPLICATE_COLUMN_NAME)
 //
@@ -219,7 +218,7 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //        assertSameJson(analysisResultsAsJson, expected)
 //      }
 //    }
-//
+
 //    "only include some specific tags in returned DataFrame if requested" in
 //      withSparkSession { session =>
 //
@@ -243,11 +242,11 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //          assertSameRows(analysisResultsAsDataFrame, expected)
 //        }
 //    }
-//
+
 //    "only include some specific tags in returned Json if requested" in
-//      withSparkSession { session =>
+//      withJdbc { connection =>
 //
-//        evaluate(session) { results =>
+//        evaluate(connection) { results =>
 //
 //          val resultKey = ResultKey(DATE_ONE, MULTIPLE_TAGS)
 //
@@ -270,7 +269,7 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //          assertSameJson(analysisResultsAsJson, expected)
 //        }
 //      }
-//
+
 //    "return empty DataFrame if AnalyzerContext contains no entries" in withSparkSession { session =>
 //
 //      val data = getDfFull(session)
@@ -291,11 +290,11 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //    }
 //
 //    "return empty Json Array if AnalyzerContext contains no entries" in
-//      withSparkSession { session =>
+//      withJdbc { connection =>
 //
-//        val data = getDfFull(session)
+//        val data = JdbcDataset(getTableFull(connection))
 //
-//        val results = Analysis().run(data)
+//        val results = Analysis.onData(data).run()
 //
 //        val resultKey = ResultKey(DATE_ONE, REGION_EU)
 //
@@ -307,31 +306,27 @@ class AnalysisResultTest extends WordSpec with Matchers with JdbcContextSpec wit
 //        assertSameJson(analysisResultsAsJson, expected)
 //      }
 //  }
-//
-//  private[this] def evaluate(session: SparkSession)(test: AnalyzerContext => Unit)
+
+//  private[this] def evaluate(connection: Connection)(test: ComputedStatistics => Unit)
 //  : Unit = {
 //
-//    val data = getDfFull(session)
+//    val data = getTableFull(connection)
 //
-//    val results = createAnalysis().run(data)
+//    val result = JdbcEngine.computeOn(data, createStatistics())
 //
-//    test(results)
+//    test(result)
 //  }
 //
-//  private[this] def createAnalysis(): Analysis = {
-//    Analysis()
-//      .addAnalyzer(Size())
-//      .addAnalyzer(Distinctness("item"))
-//      .addAnalyzer(Completeness("att1"))
-//      .addAnalyzer(Uniqueness(Seq("att1", "att2")))
+//  private[this] def createStatistics(): Seq[Statistic] = {
+//    Seq(
+//      Size(),
+//      Distinctness(Seq("item")),
+//      Completeness("att1"),
+//      Uniqueness(Seq("att1", "att2")))
 //  }
 //
 //  private[this] def createDate(year: Int, month: Int, day: Int): Long = {
 //    LocalDate.of(year, month, day).atTime(10, 10, 10).toEpochSecond(ZoneOffset.UTC)
-//  }
-//
-//  private[this] def assertSameRows(dataframeA: DataFrame, dataframeB: DataFrame): Unit = {
-//    assert(dataframeA.collect().toSet == dataframeB.collect().toSet)
 //  }
 //
 //  private[this] def assertSameJson(jsonA: String, jsonB: String): Unit = {

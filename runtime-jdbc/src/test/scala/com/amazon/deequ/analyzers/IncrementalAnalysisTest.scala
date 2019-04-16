@@ -20,12 +20,10 @@ import java.sql.Connection
 
 import com.amazon.deequ.JdbcContextSpec
 import com.amazon.deequ.jdbc.OperatorList
-import com.amazon.deequ.runtime.jdbc.InMemoryJdbcStateProvider
 import com.amazon.deequ.runtime.jdbc.operators._
+import com.amazon.deequ.runtime.jdbc.{InMemoryJdbcStateProvider, JdbcHelpers}
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
-
-import scala.collection.mutable
 
 class IncrementalAnalysisTest extends WordSpec with Matchers with JdbcContextSpec
   with FixtureSupport {
@@ -36,7 +34,7 @@ class IncrementalAnalysisTest extends WordSpec with Matchers with JdbcContextSpe
       val initial = initialData(connection)
       val delta = deltaData(connection)
 
-      val everything = initial union delta
+      val everything = initial.union(delta)
 
       val analysis = OperatorList().addAnalyzers(
         Seq(SizeOp(),
@@ -141,7 +139,7 @@ class IncrementalAnalysisTest extends WordSpec with Matchers with JdbcContextSpe
       Seq(1, "B001RS3C2C", "CATEGORY-0-$ims_facets-0-", "extended"),
       Seq(1, "B001RTDRO4", "CATEGORY-0-$ims_facets-0-", "extended"))
 
-    fillTableWithData("initialData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("initialData", schema, data, connection)
   }
 
   def deltaData(connection: Connection): Table = {
@@ -174,6 +172,6 @@ class IncrementalAnalysisTest extends WordSpec with Matchers with JdbcContextSpe
       Seq(1, "B00C1DDNC6", "BroadITKitem_type_keyword-0-", "lighting-products"),
       Seq(1, "B00CF0URZ6", "BroadITKitem_type_keyword-0-", "lighting-products"))
 
-    fillTableWithData("deltaData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("deltaData", schema, data, connection)
   }
 }

@@ -17,11 +17,10 @@
 package com.amazon.deequ.analyzers
 
 import com.amazon.deequ.JdbcContextSpec
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
-
-import scala.collection.mutable
 
 class StatesTest extends WordSpec with Matchers with JdbcContextSpec with FixtureSupport {
 
@@ -31,8 +30,8 @@ class StatesTest extends WordSpec with Matchers with JdbcContextSpec with Fixtur
       val schema = JdbcStructType(
         JdbcStructField("att1", StringType) :: Nil)
 
-      val dataA = fillTableWithData("dataA", schema, Seq("A", "A", "B").map(Seq(_)), connection)
-      val dataB = fillTableWithData("dataB", schema, Seq("A", "C", "C").map(Seq(_)), connection)
+      val dataA = JdbcHelpers.fillTableWithData("dataA", schema, Seq("A", "A", "B").map(Seq(_)), connection)
+      val dataB = JdbcHelpers.fillTableWithData("dataB", schema, Seq("A", "C", "C").map(Seq(_)), connection)
 
       val stateA = FrequencyBasedOperator.computeFrequencies(dataA, "att1" :: Nil)
       val stateB = FrequencyBasedOperator.computeFrequencies(dataB, "att1" :: Nil)

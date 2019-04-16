@@ -21,11 +21,9 @@ import com.amazon.deequ.runtime.jdbc.Applicability
 import com.amazon.deequ.runtime.jdbc.operators._
 import org.scalatest.WordSpec
 
-import scala.collection.mutable
-
 class ApplicabilityTest extends WordSpec with JdbcContextSpec {
 
-  private[this] val schema = JdbcStructType(Array(
+  private[this] val schema = JdbcStructType(Seq(
     JdbcStructField("stringCol", StringType, nullable = true),
     JdbcStructField("stringCol2", StringType, nullable = true),
     JdbcStructField("byteCol", ByteType, nullable = true),

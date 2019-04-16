@@ -172,10 +172,15 @@ case class DataTypeOp(
 
     s"COUNT(${conditionalSelection(column, where)})" :: conditionalCount(where) ::
       countOccurrencesOf(integerPattern) :: countOccurrencesOf(fractionPattern) ::
-      countOccurrencesOf(booleanPattern) :: s"CASE WHEN MIN($column) IS NULL THEN 0 ELSE MIN($column) END" :: Nil
+      countOccurrencesOf(booleanPattern) :: s"MIN($column)" :: Nil
   }
 
   override def fromAggregationResult(result: JdbcRow, offset: Int): Option[DataTypeHistogram] = {
+
+    if (result.isNullAt(offset + 5)) {
+      result.setObject(offset + 5, 0)
+    }
+
     ifNoNullsIn(result, offset, 6) { _ =>
       // column at offset + 5 contains minimum value of the column
       val dataType = result.row(offset + 5) match {

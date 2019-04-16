@@ -168,7 +168,7 @@ object DiskMetricsRepository {
     // Create temp file
     val uuid = randomUUID().toString
     val qualifiedPath = asQualifiedPath(path)
-    val tempQualifiedPath = s"$path/$uuid.json"
+    val tempQualifiedPath = s"${new File(path).getParent}/$uuid.json"
 
     LocalDiskUtils.writeToFileOnDisk(tempQualifiedPath, overwrite)(writeFunc)
 
@@ -192,6 +192,6 @@ object DiskMetricsRepository {
   }
 
   private[this] def asQualifiedPath(path: String): String = {
-    s"$path.json"
+    path
   }
 }

@@ -18,10 +18,11 @@ package com.amazon.deequ.repository
 
 import java.time.{LocalDate, ZoneOffset}
 
-import com.amazon.deequ.ComputedStatistics
 import com.amazon.deequ.metrics._
 import com.amazon.deequ.serialization.json.StatisticsResultSerde._
 import com.amazon.deequ.statistics._
+import com.amazon.deequ.utils.FixtureSupport
+import com.amazon.deequ.{ComputedStatistics, JdbcContextSpec}
 import org.scalatest._
 
 import scala.util.{Failure, Success}
@@ -183,13 +184,14 @@ class StatisticsResultSerdeTest extends FlatSpec with Matchers {
   }
 }
 
-//class SimpleResultSerdeTest extends WordSpec with Matchers with SparkContextSpec
-//  with FixtureSupport{
-//
+class SimpleResultSerdeTest extends WordSpec with Matchers with JdbcContextSpec
+  with FixtureSupport{
+
 //  "serialize and deserialize success metric results with tags" in
-//    withSparkSession { sparkSession =>
+//    withJdbc { connection =>
+//      assert(false)
 //
-//      val df = getDfFull(sparkSession)
+//      val data = getTableFull(connection)
 //
 //      val analysis = Seq(
 //        Size(),
@@ -201,7 +203,7 @@ class StatisticsResultSerdeTest extends FlatSpec with Matchers {
 //        Uniqueness(Seq("att2")),
 //        MutualInformation(Seq("att1", "att2")))
 //
-//      val analysisContext = SparkEngine.computeOn(df, analysis)
+//      val analysisContext = JdbcEngine.computeOn(data, analysis)
 //
 //      val date = LocalDate.of(2017, 10, 14).atTime(10, 10, 10)
 //        .toEpochSecond(ZoneOffset.UTC)
@@ -234,4 +236,4 @@ class StatisticsResultSerdeTest extends FlatSpec with Matchers {
 //      assert(SimpleResultSerde.deserialize(sucessMetricsResultJson) ==
 //        SimpleResultSerde.deserialize(expected))
 //    }
-//}
+}

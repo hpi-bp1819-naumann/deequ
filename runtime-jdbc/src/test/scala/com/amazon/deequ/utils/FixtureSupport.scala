@@ -16,9 +16,9 @@
 
 package com.amazon.deequ.utils
 
-import java.sql.{Connection, Timestamp}
-import java.util.UUID
+import java.sql.Connection
 
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
 import com.amazon.deequ.runtime.jdbc.operators.{JdbcStructField, _}
 
 import scala.util.Random
@@ -34,7 +34,7 @@ trait FixtureSupport {
          |  sqlite_master
          |WHERE
          |  type='table'
-         |  AND name='$tableName'
+         |  AND name='${tableName.toLowerCase}'
        """.stripMargin
 
     val stmt = conn.createStatement()
@@ -45,64 +45,6 @@ trait FixtureSupport {
     } else {
       false
     }
-  }
-
-  def randomUUID(): String = {
-    UUID.randomUUID().toString.replace("-", "")
-  }
-
-  def getDefaultTableWithName(tableName: String, connection: Connection): Table = {
-    Table(s"${tableName}_${randomUUID()}", connection)
-  }
-
-  def fillTableWithData(tableName: String,
-                        schema: JdbcStructType, 
-                        values: Seq[Seq[Any]],
-                        connection: Connection
-                       ): Table = {
-
-    val table = getDefaultTableWithName(tableName, connection)
-
-    val deletionQuery =
-      s"""
-         |DROP TABLE IF EXISTS
-         | ${table.name}
-       """.stripMargin
-    table.execute(deletionQuery)
-
-    val creationQuery =
-      s"""
-         |CREATE TABLE IF NOT EXISTS
-         | ${table.name}
-         |  ${schema.toString}
-       """.stripMargin
-
-    table.execute(creationQuery)
-
-    if (values.nonEmpty) {
-      val sqlValues = values.map(row => {
-        row.map({
-          case str: String => "'" + str.replace("'", "''") + "'"
-          case bool: Boolean => "'" + bool + "'"
-          case ts: Timestamp => "\"" + ts + "\""
-          case value => value match {
-            case null => s"${null}"
-            case _ => value.toString
-          }
-        }).mkString("(", ", " , ")")
-      }).mkString(",")
-
-      val insertQuery =
-        s"""
-           |INSERT INTO ${table.name}
-           | ${schema.columnNames()}
-           |VALUES
-           | $sqlValues
-         """.stripMargin
-
-      table.execute(insertQuery)
-    }
-    table
   }
 
   def deleteTable(table: Table): Unit = {
@@ -128,8 +70,8 @@ trait FixtureSupport {
       (1 to n)
         .toList
         .map { index => Seq(s"$index", s"c1-r$index", s"c2-r$index")}
-    
-    fillTableWithData("NRows", schema, data, connection)
+
+    JdbcHelpers.fillTableWithData("NRows", schema, data, connection)
   }
 
   def getTableMissingColumnWithSize(connection: Connection): (Table, Long) = {
@@ -144,7 +86,7 @@ trait FixtureSupport {
         Seq(2, null),
         Seq(3, null))
 
-    (fillTableWithData("MissingColumn", schema, data, connection), data.size)
+    (JdbcHelpers.fillTableWithData("MissingColumn", schema, data, connection), data.size)
   }
 
   def getTableMissingColumn(connection: Connection): Table = {
@@ -159,7 +101,7 @@ trait FixtureSupport {
 
     val data = Seq()
 
-    (fillTableWithData("EmptyTable", schema, data, connection), 0)
+    (JdbcHelpers.fillTableWithData("EmptyTable", schema, data, connection), 0)
   }
 
   def getTableEmpty(connection: Connection): Table = {
@@ -188,7 +130,7 @@ trait FixtureSupport {
         Seq("11", null, "f"),
         Seq("12", null, "d")
       )
-    (fillTableWithData("Missing", schema, data, connection), data.size)
+    (JdbcHelpers.fillTableWithData("Missing", schema, data, connection), data.size)
   }
 
   def getTableMissing(connection: Connection): Table = {
@@ -209,7 +151,7 @@ trait FixtureSupport {
         Seq("3", "a", "c"),
         Seq("4", "b", "d")
       )
-    (fillTableWithData("Full", schema, data, connection), data.size)
+    (JdbcHelpers.fillTableWithData("Full", schema, data, connection), data.size)
   }
 
   def getTableFull(connection: Connection): Table = {
@@ -230,7 +172,7 @@ trait FixtureSupport {
         Seq("3", "-3", "-3.0"),
         Seq("4", "-4", "-4.0")
       )
-    fillTableWithData("NegativeNumbers", schema, data, connection)
+    JdbcHelpers.fillTableWithData("NegativeNumbers", schema, data, connection)
   }
 
   def getTableCompleteAndInCompleteColumns(connection: Connection): Table = {
@@ -254,7 +196,7 @@ trait FixtureSupport {
         Seq("6", "a", "f")
       )
 
-    (fillTableWithData("CompleteAndInCompleteColumns", schema, data, connection), data.size)
+    (JdbcHelpers.fillTableWithData("CompleteAndInCompleteColumns", schema, data, connection), data.size)
   }
 
   def getTableCompleteAndInCompleteColumnsDelta(connection: Connection): Table = {
@@ -270,7 +212,7 @@ trait FixtureSupport {
         Seq("8", "b", "d"),
         Seq("9", "a", null)
       )
-    fillTableWithData("CompleteAndInCompleteColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("CompleteAndInCompleteColumns", schema, data, connection)
   }
 
   def getTableFractionalIntegralTypes(connection: Connection): Table = {
@@ -284,7 +226,7 @@ trait FixtureSupport {
         Seq("1", "1.0"),
         Seq("2", "1")
       )
-    fillTableWithData("FractionalIntegralTypes", schema, data, connection)
+    JdbcHelpers.fillTableWithData("FractionalIntegralTypes", schema, data, connection)
   }
 
   def getTableFractionalStringTypes(connection: Connection): Table = {
@@ -298,7 +240,7 @@ trait FixtureSupport {
         Seq("1", "1.0"),
         Seq("2", "a")
       )
-    fillTableWithData("FractionalStringTypes", schema, data, connection)
+    JdbcHelpers.fillTableWithData("FractionalStringTypes", schema, data, connection)
   }
 
   def getTableIntegralStringTypes(connection: Connection): Table = {
@@ -312,7 +254,7 @@ trait FixtureSupport {
         Seq("1", "1"),
         Seq("2", "a")
       )
-    fillTableWithData("IntegralStringTypes", schema, data, connection)
+    JdbcHelpers.fillTableWithData("IntegralStringTypes", schema, data, connection)
   }
 
   def getTableWithNumericValues(connection: Connection): Table = {
@@ -331,7 +273,7 @@ trait FixtureSupport {
         Seq("5", 5, 6),
         Seq("6", 6, 7)
       )
-    fillTableWithData("NumericValues", schema, data, connection)
+    JdbcHelpers.fillTableWithData("NumericValues", schema, data, connection)
   }
 
   def getTableWithNumericFractionalValues(connection: Connection): Table = {
@@ -350,7 +292,7 @@ trait FixtureSupport {
         Seq("5", 5.0, 6.0),
         Seq("6", 6.0, 7.0)
       )
-    fillTableWithData("NumericFractionalValues", schema, data, connection)
+    JdbcHelpers.fillTableWithData("NumericFractionalValues", schema, data, connection)
   }
 
   def getTableWithUniqueColumns(connection: Connection): Table = {
@@ -372,7 +314,7 @@ trait FixtureSupport {
         Seq("5", "6", null, "4", "0", "5"),
         Seq("6", "7", null, "5", "0", "6")
       )
-    fillTableWithData("UniqueColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("UniqueColumns", schema, data, connection)
   }
 
   def getTableWithDistinctValues(connection: Connection): Table = {
@@ -390,7 +332,7 @@ trait FixtureSupport {
         Seq("b", "x"),
         Seq("c", "y")
       )
-    fillTableWithData("DistinctValues", schema, data, connection)
+    JdbcHelpers.fillTableWithData("DistinctValues", schema, data, connection)
   }
 
   def getTableWithEmptyStringValues(connection: Connection): Table = {
@@ -408,7 +350,7 @@ trait FixtureSupport {
         Seq("5", "x"),
         Seq("6", "")
       )
-    fillTableWithData("EmptyStringValues", schema, data, connection)
+    JdbcHelpers.fillTableWithData("EmptyStringValues", schema, data, connection)
   }
 
   def getTableWithWhitespace(connection: Connection): Table = {
@@ -426,7 +368,7 @@ trait FixtureSupport {
         Seq("5", "x"),
         Seq("6", "x")
       )
-    fillTableWithData("Whitespace", schema, data, connection)
+    JdbcHelpers.fillTableWithData("Whitespace", schema, data, connection)
   }
 
   def getTableWithConditionallyUninformativeColumns(connection: Connection): Table = {
@@ -441,7 +383,7 @@ trait FixtureSupport {
         Seq(2, 0),
         Seq(3, 0)
       )
-    fillTableWithData("ConditionallyUninformativeColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("ConditionallyUninformativeColumns", schema, data, connection)
   }
 
   def getTableWithConditionallyInformativeColumns(connection: Connection): Table = {
@@ -456,7 +398,7 @@ trait FixtureSupport {
         Seq(2, 5),
         Seq(3, 6)
       )
-    fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
   }
 
   def getTableWithImproperDataTypes(connection: Connection): Table = {
@@ -475,7 +417,7 @@ trait FixtureSupport {
         Seq("string", 6, 3.3),
         Seq("null", 6, 3.3)
       )
-    fillTableWithData("MissingTypes", schema, data, connection)
+    JdbcHelpers.fillTableWithData("MissingTypes", schema, data, connection)
   }
 
   def getTableWithInverseNumberedColumns(connection: Connection): Table = {
@@ -490,7 +432,7 @@ trait FixtureSupport {
         Seq(2, 5),
         Seq(3, 4)
       )
-    fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
   }
 
   def getTableWithPartlyCorrelatedColumns(connection: Connection): Table = {
@@ -505,7 +447,7 @@ trait FixtureSupport {
         Seq(2, 2),
         Seq(3, 6)
       )
-    fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
+    JdbcHelpers.fillTableWithData("ConditionallyInformativeColumns", schema, data, connection)
   }
 
   def getTableWithPricedItems(connection: Connection): Table = {
@@ -526,7 +468,7 @@ trait FixtureSupport {
         Seq("6", "a", 21, 78.0),
         Seq("7", null, 12, 0.0)
       )
-    fillTableWithData("PricedItems", schema, data, connection)
+    JdbcHelpers.fillTableWithData("PricedItems", schema, data, connection)
   }
 
   def getTableWithCategoricalColumn(
@@ -546,6 +488,6 @@ trait FixtureSupport {
         .toList
         .map { index => Seq(s"$index", random.shuffle(categories).head)}
 
-    fillTableWithData("categoricalColumn", schema, rowData, connection)
+    JdbcHelpers.fillTableWithData("categoricalColumn", schema, rowData, connection)
   }
 }

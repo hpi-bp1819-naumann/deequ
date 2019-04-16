@@ -38,6 +38,6 @@ case class CompletenessOp(column: String, where: Option[String] = None) extends
   }
 
   override protected def additionalPreconditions(): Seq[Table => Unit] = {
-    hasColumn(column) :: Nil
+    hasColumn(column) :: hasNoInjection(where) :: Nil
   }
 }

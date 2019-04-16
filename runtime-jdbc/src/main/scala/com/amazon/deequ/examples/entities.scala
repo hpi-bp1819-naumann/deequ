@@ -16,20 +16,16 @@
 
 package com.amazon.deequ.examples
 
-import org.scalatest.WordSpec
+private[examples] case class Item(
+    id: Long,
+    name: String,
+    description: String,
+    priority: String,
+    numViews: Long
+)
 
-class ExamplesTest extends WordSpec {
-
-  "all examples" should {
-    "run without errors" in {
-      BasicExample.main(Array.empty)
-      IncrementalMetricsExample.main(Array.empty)
-      MetricsRepositoryExample.main(Array.empty)
-      UpdateMetricsOnPartitionedDataExample.main(Array.empty)
-      DataProfilingExample.main(Array.empty)
-      AnomalyDetectionExample.main(Array.empty)
-      ConstraintSuggestionExample.main(Array.empty)
-    }
-  }
-
-}
+private[examples] case class Manufacturer(
+    id: Long,
+    name: String,
+    countryCode: String
+)

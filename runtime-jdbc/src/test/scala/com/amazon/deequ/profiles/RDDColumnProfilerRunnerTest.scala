@@ -112,16 +112,16 @@ class RDDColumnProfilerRunnerTest extends WordSpec with Matchers with JdbcContex
 //    "should write output files to specified locations" in withJdbc { connection =>
 //
 //      val engine = JdbcEngine(connection)
-//      val df = JdbcDataset(getTableWithNumericValues(connection))
+//      val data = JdbcDataset(getTableWithNumericValues(connection))
 //
 //      val tempDir = TempFileUtils.tempDir("constraintSuggestionOuput")
 //      val columnProfilesPath = tempDir + "/column-profiles.json"
 //
-//      ColumnProfilerRunner().onData(df, engine)
+//      ColumnProfilerRunner().onData(data)
 //        .saveColumnProfilesJsonToPath(columnProfilesPath)
 //        .run()
 //
-//      TablesUtils.readFromFileOnTables(connection, columnProfilesPath) {
+//      LocalDiskUtils.readFromFileOnDisk(columnProfilesPath) {
 //        inputStream => assert(inputStream.read() > 0)
 //      }
 //    }

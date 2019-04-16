@@ -14,17 +14,33 @@
  *
  */
 
-package com.amazon.deequ.examples
+package com.amazon.deequ
+package examples
 
 import java.sql.{Connection, DriverManager}
 import java.util.Properties
+
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
+import com.amazon.deequ.runtime.jdbc.operators._
+import org.sqlite.Function
 
 import scala.io.Source
 
 
 object ExampleUtils {
 
-  val jdbcUrl = "jdbc:postgresql://localhost:5432/food"
+  // This uses a PostreSQL connection for computation
+  def withJdbc(func: Connection => Unit): Unit = {
+
+    val jdbcUrl = "jdbc:postgresql://localhost:5432/food"
+    val connection = DriverManager.getConnection(jdbcUrl, connectionProperties())
+
+    try {
+      func(connection)
+    } finally {
+      connection.close()
+    }
+  }
 
   def connectionProperties(): Properties = {
 
@@ -40,12 +56,68 @@ object ExampleUtils {
     properties
   }
 
-  def withJdbc(func: Connection => Unit): Unit = {
-    val connection = DriverManager.getConnection(jdbcUrl, connectionProperties())
+  // This uses SQLite for computation
+  def withJdbcForSQLite(testFunc: Connection => Unit): Unit = {
+
+    val jdbcUrlSQLite = "jdbc:sqlite:analyzerTests.db?mode=memory&cache=shared"
+    val connection = DriverManager.getConnection(jdbcUrlSQLite)
+
+    // Register user defined function for regular expression matching
+    Function.create(connection, "regexp_matches", new Function() {
+      protected def xFunc(): Unit = {
+        val textToMatch = value_text(0)
+        val pattern = value_text(1).r
+
+        pattern.findFirstMatchIn(textToMatch) match {
+          case Some(_) => result(1) // If a match is found, return any value other than NULL
+          case None => result() // If no match is found, return NULL
+        }
+      }
+    })
+
+    // Register user defined function for natural logarithm
+    Function.create(connection, "ln", new Function() {
+      protected def xFunc(): Unit = {
+        val num = value_double(0)
+
+        if (num != 0) {
+          result(math.log(num))
+        } else {
+          result()
+        }
+      }
+    })
+
     try {
-      func(connection)
+      testFunc(connection)
     } finally {
       connection.close()
     }
+  }
+
+  def itemsAsTable(connection: Connection, items: Item*): Table = {
+
+    val schema = JdbcStructType(
+      JdbcStructField("id", LongType) ::
+        JdbcStructField("name", StringType) ::
+        JdbcStructField("description", StringType) ::
+        JdbcStructField("priority", StringType) ::
+        JdbcStructField("numViews", LongType) :: Nil)
+
+    val rowData = items.map(item => Seq(item.id, item.name, item.description, item.priority, item.numViews))
+
+    JdbcHelpers.fillTableWithData("exampleItems", schema, rowData, connection, temporary = true)
+  }
+
+  def manufacturersAsTable(connection: Connection, manufacturers: Manufacturer*): Table = {
+
+    val schema = JdbcStructType(
+      JdbcStructField("id", LongType) ::
+        JdbcStructField("name", StringType) ::
+        JdbcStructField("countryCode", StringType) :: Nil)
+
+    val rowData = manufacturers.map(manufacturer => Seq(manufacturer.id, manufacturer.name, manufacturer.countryCode))
+
+    JdbcHelpers.fillTableWithData("exampleItems", schema, rowData, connection, temporary = true)
   }
 }

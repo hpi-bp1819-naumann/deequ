@@ -16,17 +16,15 @@
 
 package com.amazon.deequ.runtime.jdbc
 
-import com.amazon.deequ.{ComputedStatistics, RepositoryOptions}
-import com.amazon.deequ.statistics.DataTypeInstances._
-import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.metrics._
 import com.amazon.deequ.profiles.{ColumnProfiles, NumericColumnProfile, StandardColumnProfile}
 import com.amazon.deequ.repository.{MetricsRepository, ResultKey}
 import com.amazon.deequ.runtime.jdbc.executor.{JdbcExecutor, OperatorResults, ReusingNotPossibleResultsMissingException}
-import com.amazon.deequ.runtime.jdbc.operators.{CompletenessOp, HistogramOp, SizeOp}
+import com.amazon.deequ.runtime.jdbc.operators.{CompletenessOp, HistogramOp, SizeOp, _}
+import com.amazon.deequ.statistics.DataTypeInstances._
 import com.amazon.deequ.statistics.{DataTypeInstances, Histogram, Statistic}
+import com.amazon.deequ.{ComputedStatistics, RepositoryOptions}
 
-import scala.collection.mutable
 import scala.util.Success
 
 private[deequ] case class GenericColumnStatistics(
@@ -116,7 +114,7 @@ object RDDColumnProfiler {
 
     // We compute completeness, approximate number of distinct values
     // and type detection for string columns in the first pass
-    val analyzersForGenericStats = getAnalyzersForGenericStats(data.columns(), relevantColumns)
+    val analyzersForGenericStats = getAnalyzersForGenericStats(data.schema(), relevantColumns)
 
     val firstPassResults = JdbcExecutor.doAnalysisRun(
       data,
@@ -124,7 +122,7 @@ object RDDColumnProfiler {
       metricsRepositoryOptions = repositoryOptions
     )
 
-    val genericStatistics = extractGenericStatistics(relevantColumns, data.columns(), firstPassResults)
+    val genericStatistics = extractGenericStatistics(relevantColumns, data.schema(), firstPassResults)
 
     // Second pass
     if (printStatusUpdates) {
@@ -192,17 +190,17 @@ object RDDColumnProfiler {
   }
 
   private[this] def getAnalyzersForGenericStats(
-      columns: mutable.LinkedHashMap[String, JdbcDataType],
+      columns: JdbcStructType,
       relevantColumns: Seq[String])
     : Seq[Operator[_, Metric[_]]] = {
 
-    columns
-      .filter { field => relevantColumns.contains(field._1) }
+    columns.fields
+      .filter { field => relevantColumns.contains(field.name) }
       .flatMap { field =>
 
-        val name = field._1
+        val name = field.name
 
-        if (field._2 == StringType) {
+        if (field.dataType == StringType) {
           Seq(CompletenessOp(name), CountDistinctOp(name), /* TODO approx ApproxCountDistinctOp(name), */ DataTypeOp(name))
         } else {
           Seq(CompletenessOp(name), CountDistinctOp(name) /* TODO approx ApproxCountDistinctOp(name) */)
@@ -310,7 +308,7 @@ object RDDColumnProfiler {
 
   private[this] def extractGenericStatistics(
       columns: Seq[String],
-      schema: mutable.LinkedHashMap[String, JdbcDataType],
+      schema: JdbcStructType,
       results: OperatorResults)
     : GenericColumnStatistics = {
 
@@ -343,21 +341,21 @@ object RDDColumnProfiler {
         analyzer.column -> metric.value.get
       }
 
-    val knownTypes = schema
-      .filter { column => schema.keySet.contains(column._1) }
-      .filter { _._2 != StringType }
+    val knownTypes = schema.fields
+      .filter { column => columns.contains(column.name) }
+      .filter { _.dataType != StringType }
       .map { field =>
-        val knownType = field._2 match {
+        val knownType = field.dataType match {
           case ShortType | LongType | IntegerType => Integral
           case DecimalType | FloatType | DoubleType => Fractional
           case BooleanType => Boolean
           case TimestampType => String  // TODO We should have support for dates in deequ...
           case _ =>
-            println(s"Unable to map type ${field._2}")
+            println(s"Unable to map type ${field.dataType}")
             Unknown
         }
 
-        field._1 -> knownType
+        field.name -> knownType
       }
       .toMap
 
@@ -495,7 +493,7 @@ object RDDColumnProfiler {
       targetColumns: Seq[String])
     : Map[String, Distribution] = {
 
-    val namesToIndexes = data.columns().keys
+    val namesToIndexes = data.schema().columnsNamesAsSeq()
       .zipWithIndex
       .toMap
 

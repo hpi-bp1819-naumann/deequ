@@ -17,6 +17,7 @@
 package com.amazon.deequ.runtime.jdbc.operators
 
 import com.amazon.deequ.runtime.jdbc.operators.Operators._
+import com.amazon.deequ.runtime.jdbc.operators.Preconditions._
 
 import scala.util.matching.Regex
 
@@ -51,5 +52,9 @@ case class PatternMatchOp(column: String, pattern: Regex, where: Option[String] 
         :: where :: Nil)})"
 
     summation :: conditionalCount(where) :: Nil
+  }
+
+  override def additionalPreconditions(): Seq[Table => Unit] = {
+    hasColumn(column) :: hasNoInjection(where) :: hasNoInjection(Some(pattern.toString())) :: Nil
   }
 }

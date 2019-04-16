@@ -44,6 +44,6 @@ case class SumOp(column: String, where: Option[String] = None)
   }
 
   override protected def additionalPreconditions(): Seq[Table => Unit] = {
-    hasColumn(column) :: isNumeric(column) :: Nil
+    hasColumn(column) :: isNumeric(column) :: hasNoInjection(where) :: Nil
   }
 }

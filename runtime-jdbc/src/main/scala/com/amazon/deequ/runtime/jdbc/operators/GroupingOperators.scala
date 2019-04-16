@@ -23,8 +23,6 @@ import com.amazon.deequ.metrics.DoubleMetric
 import com.amazon.deequ.runtime.jdbc.operators.Operators._
 import com.amazon.deequ.runtime.jdbc.operators.Preconditions._
 
-import scala.collection.mutable
-
 /** Base class for all analyzers that operate the frequencies of groups in the data */
 abstract class FrequencyBasedOperator(columnsToGroupOn: Seq[String])
   extends GroupingOperator[FrequenciesAndNumRows, DoubleMetric] {
@@ -37,7 +35,7 @@ abstract class FrequencyBasedOperator(columnsToGroupOn: Seq[String])
 
   /** We need at least one grouping column, and all specified columns must exist */
   override def preconditions: Seq[Table => Unit] = {
-    Seq(atLeastOne(columnsToGroupOn)) ++ columnsToGroupOn.map { hasColumn } ++ super.preconditions
+    super.preconditions ++ columnsToGroupOn.map { hasColumn } ++ Seq(atLeastOne(columnsToGroupOn))
   }
 }
 
@@ -134,7 +132,7 @@ case class FrequenciesAndNumRows(table: Table,
   def numNulls(): Long = {
     _numNulls match {
       case None =>
-        val firstGroupingColumn = table.columns().head._1
+        val firstGroupingColumn = table.schema().fields.head.name
 
         val numNulls =
           s"SUM(CASE WHEN ($firstGroupingColumn IS NULL) THEN ${Operators.COUNT_COL} ELSE 0 END)"
@@ -171,7 +169,7 @@ case class FrequenciesAndNumRows(table: Table,
     FrequenciesAndNumRows(newTable, Some(totalRows), Some(numNulls() + other.numNulls()))
   }
 
-  def frequencies(): (mutable.LinkedHashMap[String, JdbcDataType], Map[Seq[String], Long]) = {
+  def frequencies(): (JdbcStructType, Map[Seq[String], Long]) = {
 
     var frequencies = Map[Seq[String], Long]()
 
@@ -194,7 +192,7 @@ case class FrequenciesAndNumRows(table: Table,
       frequencies += (columns -> result.getLong(numGroupingColumns + 1))
     }
 
-    (table.columns(), frequencies)
+    (table.schema(), frequencies)
   }
 }
 
@@ -211,10 +209,10 @@ object FrequencyBasedOperatorsUtils {
                          second: Table): Table = {
 
     val table = Table(uniqueTableName(), first.jdbcConnection)
-    val columns = first.columns()
-    val groupingColumns = columns.keys.toSeq.filter(col => col != Operators.COUNT_COL)
+    val columns = first.schema()
+    val groupingColumns = columns.columnsNamesAsSeq().filter(col => col != Operators.COUNT_COL)
 
-    if (columns == second.columns()) {
+    if (columns.columnsNamesAsSet() == second.schema().columnsNamesAsSet()) {
 
       val query =
         s"""
@@ -244,11 +242,11 @@ object FrequencyBasedOperatorsUtils {
 object FrequenciesAndNumRows {
 
   def from(connection: Connection,
-           columns: mutable.LinkedHashMap[String, JdbcDataType],
+           schema: JdbcStructType,
            frequencies: Map[Seq[String], Long], numRows: Long): FrequenciesAndNumRows = {
 
-    val table = Table(FrequencyBasedOperatorsUtils.uniqueTableName(), connection)
-    Table.createAndFill(table, columns, frequencies)
+    val table = Table(FrequencyBasedOperatorsUtils.uniqueTableName(), connection, temporary = true)
+    Table.createAndFill(table, schema, frequencies)
 
     FrequenciesAndNumRows(table, Some(numRows))
   }

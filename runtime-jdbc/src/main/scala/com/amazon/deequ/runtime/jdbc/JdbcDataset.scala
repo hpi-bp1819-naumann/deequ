@@ -28,6 +28,6 @@ case class JdbcDataset(table: Table) extends Dataset[Connection] {
   }
 
   override def columns: Seq[String] = {
-    table.columns().keys.toSeq
+    table.schema().columnsNamesAsSeq()
   }
 }

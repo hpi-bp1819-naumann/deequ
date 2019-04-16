@@ -16,21 +16,15 @@
 
 package com.amazon.deequ.suggestions
 
-import java.sql.Connection
-
 import com.amazon.deequ.JdbcContextSpec
-import com.amazon.deequ.runtime.jdbc.JdbcDataset
-import com.amazon.deequ.suggestions.rules.UniqueIfApproximatelyUniqueRule
 import com.amazon.deequ.utils.FixtureSupport
-import com.google.gson.JsonParser
 import org.scalatest.{Matchers, WordSpec}
 
 class ConstraintSuggestionResultTest extends WordSpec with Matchers with JdbcContextSpec
   with FixtureSupport {
 
-  "ConstraintSuggestionResult" should {
-
-      // TODO Disabled for now as we get different results for Spark 2.2 and 2.3
+//  "ConstraintSuggestionResult" should {
+//      // TODO Disabled for now as we get different results for Spark 2.2 and 2.3
 //    "return Json that is formatted as expected for getColumnProfilesAsJson" in
 //      withSparkSession { session =>
 //
@@ -200,7 +194,7 @@ class ConstraintSuggestionResultTest extends WordSpec with Matchers with JdbcCon
 //          assertJsonStringsAreEqual(columnProfilesJson, expectedJson)
 //        }
 //      }
-
+//
 //    "return Json that is formatted as expected for getConstraintSuggestionsAsJson" in
 //      withSparkSession { session =>
 //
@@ -458,41 +452,41 @@ class ConstraintSuggestionResultTest extends WordSpec with Matchers with JdbcCon
 //          assertJsonStringsAreEqual(evaluationResultsJson, expectedJson)
 //        }
 //      }
-  }
-
-  private[this] def evaluate(connection: Connection)(test: ConstraintSuggestionResult => Unit): Unit = {
-
-    val data = JdbcDataset(getTableFull(connection))
-
-    val results = ConstraintSuggestionRunner()
-      .onData(data)
-      .addConstraintRules(Rules.DEFAULT)
-      .addConstraintRule(UniqueIfApproximatelyUniqueRule())
-      .run()
-
-    test(results)
-  }
-
-  private[this] def evaluateWithTrainTestSplit(connection: Connection)(test: ConstraintSuggestionResult => Unit)
-    : Unit = {
-
-    val data = JdbcDataset(getTableFull(connection))
-
-    val results = ConstraintSuggestionRunner()
-      .onData(data)
-      .addConstraintRules(Rules.DEFAULT)
-      .addConstraintRule(UniqueIfApproximatelyUniqueRule())
-      .useTrainTestSplitWithTestsetRatio(0.1, Some(0))
-      .run()
-
-    test(results)
-  }
-
-  private[this] def assertJsonStringsAreEqual(jsonA: String, jsonB: String): Unit = {
-
-    val parser = new JsonParser()
-
-    assert(parser.parse(jsonA) == parser.parse(jsonB))
-  }
+//  }
+//
+//  private[this] def evaluate(connection: Connection)(test: ConstraintSuggestionResult => Unit): Unit = {
+//
+//    val data = JdbcDataset(getTableFull(connection))
+//
+//    val results = ConstraintSuggestionRunner()
+//      .onData(data)
+//      .addConstraintRules(Rules.DEFAULT)
+//      .addConstraintRule(UniqueIfApproximatelyUniqueRule())
+//      .run()
+//
+//    test(results)
+//  }
+//
+//  private[this] def evaluateWithTrainTestSplit(connection: Connection)(test: ConstraintSuggestionResult => Unit)
+//    : Unit = {
+//
+//    val data = JdbcDataset(getTableFull(connection))
+//
+//    val results = ConstraintSuggestionRunner()
+//      .onData(data)
+//      .addConstraintRules(Rules.DEFAULT)
+//      .addConstraintRule(UniqueIfApproximatelyUniqueRule())
+//      .useTrainTestSplitWithTestsetRatio(0.1, Some(0))
+//      .run()
+//
+//    test(results)
+//  }
+//
+//  private[this] def assertJsonStringsAreEqual(jsonA: String, jsonB: String): Unit = {
+//
+//    val parser = new JsonParser()
+//
+//    assert(parser.parse(jsonA) == parser.parse(jsonB))
+//  }
 
 }

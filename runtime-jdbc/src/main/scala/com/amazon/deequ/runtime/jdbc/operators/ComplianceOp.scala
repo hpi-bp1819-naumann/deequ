@@ -17,6 +17,7 @@
 package com.amazon.deequ.runtime.jdbc.operators
 
 import com.amazon.deequ.runtime.jdbc.operators.Operators._
+import com.amazon.deequ.runtime.jdbc.operators.Preconditions.hasNoInjection
 
 /**
   * Compliance is a measure of the fraction of rows that complies with the given column constraint.
@@ -46,5 +47,9 @@ case class ComplianceOp(instance: String, predicate: String, where: Option[Strin
     val summation = s"COUNT(${conditionalSelection("1", Some(predicate) :: where :: Nil)})"
 
     summation :: conditionalCount(where) :: Nil
+  }
+
+  override protected def additionalPreconditions(): Seq[Table => Unit] = {
+    hasNoInjection(where) :: Nil
   }
 }

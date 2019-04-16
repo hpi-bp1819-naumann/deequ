@@ -68,7 +68,7 @@ object IntegerType extends JdbcNumericDataType {
 }
 
 object DoubleType extends JdbcNumericDataType {
-  override protected val validTypes = Seq("DOUBLE", "DOUBLE PRECISION")
+  override protected val validTypes = Seq("DOUBLE PRECISION", "DOUBLE")
 }
 
 object DecimalType extends JdbcNumericDataType {
@@ -105,13 +105,47 @@ object ByteType extends JdbcNumericDataType {
 }
 
 
-case class JdbcStructType(fields: Seq[JdbcStructField]) {
+case class JdbcStructType() {
+
+  private var _fields: Seq[JdbcStructField] = Seq.empty
+  private val a = 0
+  def fields: Seq[JdbcStructField] = _fields
+
   override def toString: String = {
     fields.map(_.toString).mkString("(", ", ", ")")
   }
 
-  def columnNames(): String = {
+  def toStringWithoutDataTypes: String = {
     fields.map(_.name).mkString("(", ", ", ")")
+  }
+
+  def columnNamesEncoded(): String = {
+    fields.map(_.name).mkString("(", ", ", ")")
+  }
+
+  def columnsNamesAsSet(): Set[String] = {
+    fields.map(_.name).toSet
+  }
+
+  def columnsNamesAsSeq(): Seq[String] = {
+    fields.map(_.name)
+  }
+
+  def add(field: JdbcStructField): JdbcStructType = {
+    _fields = _fields :+ field
+    this
+  }
+
+  def add(fields: Seq[JdbcStructField]): JdbcStructType = {
+    _fields = _fields ++ fields
+    this
+  }
+}
+
+object JdbcStructType {
+
+  def apply(fields: Seq[JdbcStructField]): JdbcStructType = {
+    JdbcStructType().add(fields)
   }
 }
 

@@ -18,13 +18,13 @@ package com.amazon.deequ
 package suggestions
 
 import com.amazon.deequ.constraints.StatisticConstraint
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers._
 import com.amazon.deequ.runtime.jdbc.operators._
 import com.amazon.deequ.runtime.jdbc.{JdbcDataset, JdbcEngine}
 import com.amazon.deequ.statistics._
 import com.amazon.deequ.suggestions.rules.{NonNegativeNumbersRule, UniqueIfApproximatelyUniqueRule}
 import org.scalatest.WordSpec
 
-import scala.collection.mutable
 import scala.util.Random
 
 case class Record(

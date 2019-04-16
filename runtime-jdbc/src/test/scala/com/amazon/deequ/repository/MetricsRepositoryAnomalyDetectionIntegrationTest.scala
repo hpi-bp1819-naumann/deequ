@@ -25,12 +25,11 @@ import com.amazon.deequ.checks.{Check, CheckLevel, CheckStatus}
 import com.amazon.deequ.constraints.ConstraintStatus
 import com.amazon.deequ.metrics.{DoubleMetric, Entity, Metric}
 import com.amazon.deequ.runtime.jdbc.operators._
-import com.amazon.deequ.runtime.jdbc.{DiskMetricsRepository, JdbcDataset}
+import com.amazon.deequ.runtime.jdbc.{DiskMetricsRepository, JdbcDataset, JdbcHelpers}
 import com.amazon.deequ.statistics._
 import com.amazon.deequ.utils.{FixtureSupport, TempFileUtils}
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.collection.mutable
 import scala.util.Success
 
 class MetricsRepositoryAnomalyDetectionIntegrationTest extends WordSpec with Matchers
@@ -97,7 +96,7 @@ class MetricsRepositoryAnomalyDetectionIntegrationTest extends WordSpec with Mat
       Seq("item4", null, 45, "EU"),
       Seq("item5", null, 123, "EU"))
 
-    fillTableWithData("testData", schema, rowData, connection)
+    JdbcHelpers.fillTableWithData("testData", schema, rowData, connection)
   }
 
   private[this] def fillRepositoryWithPreviousResults(repository: MetricsRepository): Unit = {

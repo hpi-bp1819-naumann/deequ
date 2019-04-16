@@ -19,12 +19,11 @@ package com.amazon.deequ.analyzers
 import java.sql.Connection
 
 import com.amazon.deequ.JdbcContextSpec
+import com.amazon.deequ.runtime.jdbc.JdbcHelpers
 import com.amazon.deequ.runtime.jdbc.operators._
-import com.amazon.deequ.runtime.jdbc.operators.JdbcColumn._
 import com.amazon.deequ.utils.FixtureSupport
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.collection.mutable
 import scala.util.Success
 
 
@@ -150,7 +149,7 @@ class IncrementalOperatorTest extends WordSpec with Matchers with JdbcContextSpe
   }
 
   "EntropyAnalyzer" should {
-    "compute correct metrics" in withJdbc { connection =>
+    "jdbc compute correct metrics" in withJdbc { connection =>
 
       val analyzer = EntropyOp("att1")
 
@@ -176,7 +175,7 @@ class IncrementalOperatorTest extends WordSpec with Matchers with JdbcContextSpe
     }
   }
 
-  /* "ApproxQuantile Analyzer" should {
+  /* TODO approx "ApproxQuantile Analyzer" should {
     "compute correct metrics for the whole and partial data-sets" in withJdbc { connection =>
 
       val attribute = "att1"
@@ -256,7 +255,7 @@ class IncrementalOperatorTest extends WordSpec with Matchers with JdbcContextSpe
         Seq("2", null, 12),
         Seq("3", "b", 12))
 
-    fillTableWithData("initialData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("initialData", schema, data, connection)
   }
 
   def deltaData(connection: Connection): Table = {
@@ -271,7 +270,7 @@ class IncrementalOperatorTest extends WordSpec with Matchers with JdbcContextSpe
         Seq("4", "b", 12),
         Seq("5", null, 12))
 
-    fillTableWithData("deltaData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("deltaData", schema, data, connection)
   }
 
   def moreDeltaData(connection: Connection): Table = {
@@ -286,6 +285,6 @@ class IncrementalOperatorTest extends WordSpec with Matchers with JdbcContextSpe
         Seq("6", "a", 12),
         Seq("7", null, 12))
 
-    fillTableWithData("deltaData", schema, data, connection)
+    JdbcHelpers.fillTableWithData("deltaData", schema, data, connection)
   }
 }

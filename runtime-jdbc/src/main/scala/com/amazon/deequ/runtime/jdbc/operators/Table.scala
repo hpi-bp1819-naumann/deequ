@@ -24,11 +24,11 @@ import com.amazon.deequ.runtime.jdbc.operators.FrequencyBasedOperatorsUtils.uniq
 import org.postgresql.copy.CopyManager
 import org.postgresql.core.BaseConnection
 
-import scala.collection.mutable
 import scala.io.Source
 
 case class Table (name: String,
-                  jdbcConnection: Connection) {
+                  jdbcConnection: Connection,
+                  temporary: Boolean = false) {
 
   /**
     * Builds and executes SQL statement and returns the ResultSet
@@ -47,8 +47,6 @@ case class Table (name: String,
          | $name
       """.stripMargin
 
-    println(query)
-
     val stmt = jdbcConnection.createStatement()
     val result = stmt.executeQuery(query)
     // TODO: Test return value of next() and throw exception
@@ -60,6 +58,53 @@ case class Table (name: String,
     } finally {
       result.close()
       stmt.close()
+    }
+  }
+
+  private[this] def existsWorkaround(): Boolean = {
+
+    val query =
+      s"""
+         |SELECT
+         |  name
+         |FROM
+         |  (SELECT * FROM sqlite_master
+         |  UNION ALL
+         |  SELECT * FROM sqlite_temp_master)
+         |WHERE
+         |  type='table'
+         |  AND name='$name'
+     """.stripMargin
+
+    val stmt = jdbcConnection.createStatement()
+    val result = stmt.executeQuery(query)
+
+    try {
+      result.next()
+    } finally {
+      stmt.close()
+    }
+  }
+
+  def exists(): Boolean = {
+
+    // Workaround for SQLite
+    if (isSQLite()) {
+      existsWorkaround()
+    } else {
+
+      val metaData = jdbcConnection.getMetaData
+      val result = metaData.getTables(null, null, null, null) //Array[String]("TABLE"))
+
+      var hasTable = false
+
+      while (result.next()) {
+        if (result.getString("TABLE_NAME") == name.toLowerCase) {
+          hasTable = true
+        }
+      }
+
+      hasTable
     }
   }
 
@@ -83,7 +128,7 @@ case class Table (name: String,
   }
 
 
-  private[deequ] def columns(): mutable.LinkedHashMap[String, JdbcDataType] = {
+  /*private[deequ] def columns(): mutable.LinkedHashMap[String, JdbcDataType] = {
 
     val query =
       s"""
@@ -110,7 +155,7 @@ case class Table (name: String,
     stmt.close()
 
     cols
-  }
+  }*/
 
   private[deequ] def schema(): JdbcStructType = {
 
@@ -140,15 +185,20 @@ case class Table (name: String,
     JdbcStructType(fields)
   }
 
-  def union(other: Table): Table = {
+  def union(other: Table, beTemporary: Boolean = false): Table = {
 
     val table = Table(uniqueTableName(), jdbcConnection)
 
-    if (columns() == other.columns()) {
+    if (schema() == other.schema()) {
+
+      val temporaryOption = beTemporary match {
+        case true => " TEMPORARY"
+        case false => ""
+      }
 
       val query =
         s"""
-           |CREATE TEMPORARY TABLE
+           |CREATE$temporaryOption TABLE
            | ${table.name}
            |AS
            | SELECT *
@@ -190,13 +240,13 @@ case class Table (name: String,
     stmt.close()
   }
 
-  private[this] def isSQLite(): Boolean = {
+  private[deequ] def isSQLite(): Boolean = {
     jdbcConnection.getMetaData.getDatabaseProductName == "SQLite"
   }
 
   private[this] def dropWorkaround(columnName: String): Unit = {
 
-    val cols = (columns().keySet - columnName).toSeq.mkString(", ")
+    val cols = (schema().columnsNamesAsSet() - columnName).toSeq.mkString(", ")
     val tempTableName = s"${name}_${UUID.randomUUID().toString.replace("-", "")}"
 
     var query =
@@ -235,7 +285,7 @@ case class Table (name: String,
 
   private[this] def withColumnRenamedWorkaround(oldColumn: String, newColumn: String): Unit = {
 
-    val cols = (columns().keySet - oldColumn).toSeq
+    val cols = (schema().columnsNamesAsSet() - oldColumn).toSeq
     val columnsWithRenamed = (cols :+ s"$oldColumn AS $newColumn").mkString(", ")
 
     val tempTableName = s"${name}_${UUID.randomUUID().toString.replace("-", "")}"
@@ -273,16 +323,17 @@ object Table {
               delimiter: String = ","): Table = {
 
     val src = Source.fromFile(csvFilePath)
-    var cols = mutable.LinkedHashMap[String, JdbcDataType]()
+    var cols = Seq.empty[JdbcStructField]
 
-    src.getLines().next().split(delimiter).foreach(colName => cols += (colName -> StringType))
+    src.getLines().next().split(delimiter).foreach(colName => cols = cols :+ JdbcStructField(colName, StringType))
 
-    create(table, cols)
+    val schema = JdbcStructType(cols)
+    create(table, schema)
     fillWithCsv(table, csvFilePath, delimiter)
   }
 
   def create(table: Table,
-             columns: mutable.LinkedHashMap[String, JdbcDataType]): Table = {
+             schema: JdbcStructType): Table = {
 
     val deletionQuery =
       s"""
@@ -290,24 +341,28 @@ object Table {
          | ${table.name}
       """.stripMargin
 
-    val stmt = table.jdbcConnection.createStatement()
-    stmt.execute(deletionQuery)
+    val stmt = table.execute(deletionQuery)
+
+    val temporary = table.temporary match {
+      case true => " TEMPORARY"
+      case false => ""
+    }
 
     val creationQuery =
       s"""
-         |CREATE TABLE
+         |CREATE$temporary TABLE
          | ${table.name}
-         |  ${columns map { case (key, value) => s"$key $value" } mkString("(", ",", ")")}
+         |  ${schema.toString}
      """.stripMargin
 
-    stmt.execute(creationQuery)
+    table.execute(creationQuery)
 
     table
   }
 
   private def fill(table: Table,
-           columns: mutable.LinkedHashMap[String, JdbcDataType],
-           frequencies: Map[Seq[String], Long]): Table = {
+                   schema: JdbcStructType,
+                   frequencies: Map[Seq[String], Long]): Table = {
 
     if (frequencies.nonEmpty) {
 
@@ -317,13 +372,12 @@ object Table {
       val query =
         s"""
            |INSERT INTO
-           | ${table.name} ${columns.keys.mkString("(", ", ", ")")}
+           | ${table.name} ${schema.toStringWithoutDataTypes}
            |VALUES
            | $values
        """.stripMargin
 
-      val stmt = table.jdbcConnection.createStatement()
-      stmt.execute(query)
+      table.execute(query)
     }
 
     table
@@ -337,16 +391,16 @@ object Table {
   }
 
   def createAndFill(table: Table,
-                    columns: mutable.LinkedHashMap[String, JdbcDataType],
+                    schema: JdbcStructType,
                     frequencies: Map[Seq[String], Long]): Table = {
 
-    create(table, columns)
-    fill(table, columns, frequencies)
+    create(table, schema)
+    fill(table, schema, frequencies)
   }
 }
 
 
-case class JdbcRow(row: Seq[Any]) {
+case class JdbcRow(var row: Seq[Any]) {
 
   def getLong(col: Int): Long = {
 
@@ -375,6 +429,10 @@ case class JdbcRow(row: Seq[Any]) {
   }
 
   def getAs[T](col: Int): T = row(col).asInstanceOf[T]
+
+  def setObject(col: Int, that: Any): Unit = {
+    row = row.updated(col, that)
+  }
 }
 
 object JdbcRow {
@@ -389,28 +447,4 @@ object JdbcRow {
 
     JdbcRow(row)
   }
-}
-
-object JdbcColumn {
-
-  /*val StringType = StringType
-  val IntegerType = "INT"
-  val DoubleType = "DOUBLE"
-  val DecimalType = "DECIMAL"
-  val FloatType = "REAL"
-  val TimestampType = "TIMESTAMP"
-  val BooleanType = "BOOLEAN"
-  val LongType = "BIGINT"
-  val ShortType = "SMALLINT"
-  val ByteType = "BYTEA"
-
-  val numericTypes = Seq(DoubleType, DecimalType, FloatType, BooleanType, LongType, ShortType, ByteType)
-
-  def isNumeric(dataType: String): Boolean = {
-    numericTypes.exists(_.startsWith(dataType))
-  }
-
-  def DecimalType(p: Int, s: Int): String = {
-    s"NUMERIC($p, $s)"
-  }*/
 }

@@ -184,7 +184,7 @@ abstract class StandardScanShareableOperator[S <: DoubleValuedState[_]](
   }
 
   override def preconditions: Seq[StructType => Unit] = {
-    additionalPreconditions() ++ super.preconditions
+    super.preconditions ++ additionalPreconditions()
   }
 
   protected def additionalPreconditions(): Seq[StructType => Unit] = {
