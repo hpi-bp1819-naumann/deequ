@@ -275,6 +275,6 @@ private[deequ] class Applicability(connection: Connection) {
       cells.toSeq
     }
 
-    JdbcHelpers.fillTableWithData("randomData", schema, data, connection, tempTable = true)
+    JdbcHelpers.fillTableWithData("randomData", schema, data, connection, temporary = true)
   }
 }
