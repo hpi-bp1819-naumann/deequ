@@ -8,7 +8,7 @@ The allowed relative error compared to the exact quantile can be configured with
 ## ApproxQuantiles
 The same as ApproxQuantile, can be given a sequence of quantiles.
 ## Completeness
-Completeness is the fraction of the number of non-null values divided by the number of all values in a column.
+Completeness is the fraction of the number of non-null values divided by the [Size](https://github.com/hpi-bp1819-naumann/deequ/blob/documentation/doc/analyzerDoc.md#size) of the column.
 ## Compliance
 Compliance is a measure of the fraction of rows that complies with the given constraint. This constraint may span multiple columns.
 e.g Given the constraint is "att1 > 3" and the data frame has 5 rows with an att1 column value greater than
@@ -22,7 +22,7 @@ Number of distinct values in the column.
 Yields a distribution map, including the overall number of values of each datatype and the percentage of each datatype. 
 Possible datatypes are Boolean, Fractional, Integral and String. If the type can't be determined, Unknown is returned.
 ## Distinctness
-Distinctness is the fraction of the number of distinct values devided by the number of all values of a column. Can be given a sequence of columns.
+Distinctness is the fraction of the number of distinct values divided by the [Size](https://github.com/hpi-bp1819-naumann/deequ/blob/documentation/doc/analyzerDoc.md#size) of the column. Can be given a sequence of columns.
 ## Entropy
 [Entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)) is a measure of the level of information contained in a message. Given the probability distribution over values in a column, it describes how many bits are required to identify a value. A highly diverse column will result in high entropy. Few different values will result in low entropy.
 ## Histogram
